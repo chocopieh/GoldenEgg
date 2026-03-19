@@ -51,18 +51,49 @@ public class Main {
 
     public void showMenu() {
         gamePanel.stopGameThread();
+
+        // reset phím khi quay về menu
+        gamePanel.keyH.upPressed = false;
+        gamePanel.keyH.downPressed = false;
+        gamePanel.keyH.leftPressed = false;
+        gamePanel.keyH.rightPressed = false;
+        gamePanel.keyH.escapePressed = false;
+
         cardLayout.show(container, "menu");
-        menuPanel.requestFocusInWindow();
+        container.revalidate();
+        container.repaint();
+
+        SwingUtilities.invokeLater(() -> {
+            menuPanel.requestFocusInWindow();
+            menuPanel.grabFocus();
+        });
+
         menuPanel.playMenuMusic();
     }
 
     public void startGame(String playerName) {
+        gamePanel.stopGameThread();
+
+        // reset phím trước khi vào lại game
+        gamePanel.keyH.upPressed = false;
+        gamePanel.keyH.downPressed = false;
+        gamePanel.keyH.leftPressed = false;
+        gamePanel.keyH.rightPressed = false;
+        gamePanel.keyH.escapePressed = false;
+
         gamePanel.setPlayerName(playerName);
         gamePanel.setupGame();
+
         cardLayout.show(container, "game");
-        gamePanel.requestFocusInWindow();
-        gamePanel.startGameThread();
-}
+        container.revalidate();
+        container.repaint();
+
+        SwingUtilities.invokeLater(() -> {
+            gamePanel.requestFocusInWindow();
+            gamePanel.grabFocus();
+            gamePanel.startGameThread();
+        });
+    }
 
     public static void main(String[] args) {
         new Main();

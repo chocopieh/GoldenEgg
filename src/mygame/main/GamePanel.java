@@ -5,10 +5,11 @@ import java.awt.Dimension;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Font;
 import mygame.tile.TileManager;
 import mygame.entity.Player;
 import mygame.tile.CollisionChecker;
+import java.util.ArrayList;
+import mygame.entity.Chicken;
 
 public class GamePanel extends JPanel implements Runnable {
 
@@ -27,6 +28,7 @@ public class GamePanel extends JPanel implements Runnable {
     public TileManager tileM = new TileManager(this);
     public KeyHandler keyH = new KeyHandler();
     public CollisionChecker cChecker = new CollisionChecker(this);
+    public UI ui;
     Thread gameThread;
 
     // TÊN NHÂN VẬT
@@ -34,6 +36,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     // KHỞI TẠO THỰC THỂ
     public Player player;
+    public ArrayList<Chicken> chickens = new ArrayList<>();
 
     public GamePanel(Main main) {
         this.main = main;
@@ -47,11 +50,14 @@ public class GamePanel extends JPanel implements Runnable {
         // QUAN TRỌNG: Khởi tạo Player sau khi TileManager đã load xong tọa độ từ Tiled
         player = new Player(this, keyH);
 
+        // Khởi tạo UI
+        ui = new UI(this);
+
         // Gọi lệnh setup để gán tọa độ PlayerStart từ map vào player
         setupGame();
     }
 
-   public void setPlayerName(String playerName) {
+    public void setPlayerName(String playerName) {
         this.playerName = playerName;
 
         if (player != null) {
@@ -61,9 +67,26 @@ public class GamePanel extends JPanel implements Runnable {
 
     // Hàm thiết lập ban đầu cho game
     public void setupGame() {
+        tileM.resetMapObjects();
+
         if (player != null) {
             player.setDefaultValues();
         }
+
+        keyH.upPressed = false;
+        keyH.downPressed = false;
+        keyH.leftPressed = false;
+        keyH.rightPressed = false;
+        keyH.escapePressed = false;
+
+        // reset gà
+       chickens.clear();
+      
+// Lấy tâm màn hình
+       int centerX = screenWidth / 2 - tileSize / 2;
+       int centerY = screenHeight / 2 - tileSize / 2;
+
+chickens.add(new Chicken(this, centerX, centerY));
     }
 
     public void startGameThread() {
@@ -113,10 +136,25 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
-        // Chỉ cập nhật nếu player đã được khởi tạo
+        // update player
         if (player != null) {
             player.update();
         }
+
+        // update gà + check va chạm
+        for (Chicken chicken : chickens) {
+            chicken.update();
+
+            if (player != null && player.getBounds().intersects(chicken.getBounds())) {
+                player.takeDamage(10);
+            }
+        }
+
+        // game over tạm thời
+       if (player != null && player.health <= 0) {
+           player.triggerGameOver();
+           return;
+        }   
     }
 
     @Override
@@ -127,7 +165,10 @@ public class GamePanel extends JPanel implements Runnable {
         // 1. VẼ MAP (Lớp nền bên dưới)
         tileM.draw(g2);
 
-        // 2. VẼ CÁC VẬT PHẨM (Nếu có)
+        // 2. VẼ GÀ
+        for (Chicken chicken : chickens) {
+            chicken.draw(g2);
+        }
 
         // 3. VẼ NHÂN VẬT (Player)
         if (player != null) {
@@ -136,6 +177,12 @@ public class GamePanel extends JPanel implements Runnable {
 
         // 4. VẼ LỚP FOREGROUND (Lớp phủ trên cùng)
         tileM.drawForeground(g2);
+
+        // 5. VẼ HUD
+        if (ui != null) {
+            ui.draw(g2);
+        }
+
         g2.dispose();
     }
 }

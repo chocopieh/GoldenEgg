@@ -20,7 +20,7 @@ public class TileManager {
 
     public ArrayList<Rectangle> collisionRects = new ArrayList<>();
     public int playerStartX, playerStartY;
-    public Rectangle eggRect; // Vị trí và kích thước quả trứng
+    public Rectangle eggRect;
     public Rectangle houseRect;
     public boolean eggCollected = false;
 
@@ -28,13 +28,12 @@ public class TileManager {
         this.gp = gp;
         
         // 1. Load ảnh
-        // Lưu ý: Nếu "res" đã là Resource Root, hãy bỏ chữ "/res" ở đầu
-        loadMazeImage("/res/maps/map_level1.png"); 
-        loadForegroundImage("/res/maps/map_foreground_level1.png"); 
-        loadEggImage("/res/tiles/egg.png"); 
+        loadMazeImage("/res/maps/map_level1.png");
+        loadForegroundImage("/res/maps/map_foreground_level1.png");
+        loadEggImage("/res/tiles/egg.png");
         
-        // 2. Load dữ liệu Tiled
-        loadTiledXML("src/res/maps/map_level1.tmx"); 
+        // 2. Load dữ liệu map
+        loadTiledXML("src/res/maps/map_level1.tmx");
     }
 
     private void loadMazeImage(String path) {
@@ -66,6 +65,17 @@ public class TileManager {
         }
     }
 
+    public void resetMapObjects() {
+        collisionRects.clear();
+        playerStartX = 0;
+        playerStartY = 0;
+        eggRect = null;
+        houseRect = null;
+        eggCollected = false;
+
+        loadTiledXML("src/res/maps/map_level1.tmx");
+    }
+
     public void loadTiledXML(String filePath) {
         try {
             File fXmlFile = new File(filePath);
@@ -83,26 +93,31 @@ public class TileManager {
                 NodeList objectList = group.getElementsByTagName("object");
                 for (int j = 0; j < objectList.getLength(); j++) {
                     Element obj = (Element) objectList.item(j);
-                    
+
                     int x = (int) Double.parseDouble(obj.getAttribute("x"));
                     int y = (int) Double.parseDouble(obj.getAttribute("y"));
-                    
-                    // Lấy width/height từ Tiled, nếu không có mặc định là 48
-                    int width = obj.hasAttribute("width") ? (int) Double.parseDouble(obj.getAttribute("width")) : 48;
-                    int height = obj.hasAttribute("height") ? (int) Double.parseDouble(obj.getAttribute("height")) : 48;
+
+                    int width = obj.hasAttribute("width")
+                            ? (int) Double.parseDouble(obj.getAttribute("width"))
+                            : 48;
+                    int height = obj.hasAttribute("height")
+                            ? (int) Double.parseDouble(obj.getAttribute("height"))
+                            : 48;
 
                     if (groupName.equalsIgnoreCase("collision")) {
                         collisionRects.add(new Rectangle(x, y, width, height));
                     } 
                     else if (groupName.equalsIgnoreCase("Entities")) {
                         String name = obj.getAttribute("name");
+
                         if (name.equalsIgnoreCase("PlayerStart")) {
                             playerStartX = x;
                             playerStartY = y;
-                        } else if (name.equalsIgnoreCase("Eggs") || name.equalsIgnoreCase("Egg")) {
-                            // Ép kích thước quả trứng thành 48x48 nếu bạn muốn cố định
-                            eggRect = new Rectangle(x, y, 64, 64); 
-                        } else if (name.equalsIgnoreCase("House")) {
+                        } 
+                        else if (name.equalsIgnoreCase("Eggs") || name.equalsIgnoreCase("Egg")) {
+                            eggRect = new Rectangle(x, y, 64, 64);
+                        } 
+                        else if (name.equalsIgnoreCase("House")) {
                             houseRect = new Rectangle(x, y, width, height);
                         }
                     }
@@ -121,12 +136,12 @@ public class TileManager {
     }
 
     public void draw(Graphics2D g2) {
-        // Vẽ Nền
+        // Vẽ nền
         if (mazeBackground != null) {
             g2.drawImage(mazeBackground, 0, 0, gp.screenWidth, gp.screenHeight, null);
         }
 
-        // Vẽ Trứng 48x48
+        // Vẽ trứng
         if (eggImage != null && eggRect != null && !eggCollected) {
             g2.drawImage(eggImage, eggRect.x, eggRect.y, 64, 64, null);
         }
