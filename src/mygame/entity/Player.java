@@ -275,6 +275,5 @@ public class Player extends Entity {
             g2.setColor(Color.YELLOW);
             g2.drawString("GOT EGG!", x, y - 22);
         }
-        //bug
     }
 }
