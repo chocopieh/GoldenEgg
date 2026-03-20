@@ -12,6 +12,7 @@ import javax.swing.SwingUtilities;
 import mygame.main.GameOverDialog;
 import mygame.main.GamePanel;
 import mygame.main.KeyHandler;
+import mygame.main.Sound;
 import mygame.main.VictoryDialog;
 
 public class Player extends Entity {
@@ -37,6 +38,9 @@ public class Player extends Entity {
     private boolean victoryShown = false;
     private boolean gameOverShown = false;
 
+    Sound footstep = new Sound();
+    boolean walkingSoundPlaying = false;
+
     // Ảnh khi cầm trứng
     public BufferedImage up1_egg, up2_egg, down1_egg, down2_egg, left1_egg, left2_egg, right1_egg, right2_egg;
 
@@ -55,6 +59,8 @@ public class Player extends Entity {
 
         setDefaultValues();
         getPlayerImage();
+
+        footstep.setFile("/res/sound/footstep.wav");
     }
 
     public void setDefaultValues() {
@@ -76,6 +82,11 @@ public class Player extends Entity {
 
         victoryShown = false;
         gameOverShown = false;
+
+        if (walkingSoundPlaying) {
+            footstep.stop();
+            walkingSoundPlaying = false;
+        }
     }
 
     public void getPlayerImage() {
@@ -106,14 +117,19 @@ public class Player extends Entity {
         }
     }
 
-    public void update() {
-        boolean isMoving = keyH.upPressed || keyH.downPressed || keyH.leftPressed || keyH.rightPressed;
+   public void update() {
+    boolean isMoving = keyH.upPressed || keyH.downPressed || keyH.leftPressed || keyH.rightPressed;
 
         if (isMoving) {
-            if (keyH.upPressed) direction = "up";
-            else if (keyH.downPressed) direction = "down";
-            else if (keyH.leftPressed) direction = "left";
-            else if (keyH.rightPressed) direction = "right";
+            if (keyH.upPressed) {
+                direction = "up";
+            } else if (keyH.downPressed) {
+                direction = "down";
+            } else if (keyH.leftPressed) {
+                direction = "left";
+            } else if (keyH.rightPressed) {
+                direction = "right";
+            }
 
             collisionOn = false;
             gp.cChecker.checkTile(this);
@@ -134,15 +150,31 @@ public class Player extends Entity {
                         x += speed;
                         break;
                 }
-            }
 
-            spriteCounter++;
-            if (spriteCounter > 12) {
-                spriteNum = (spriteNum == 1) ? 2 : 1;
-                spriteCounter = 0;
+                if (!walkingSoundPlaying) {
+                    footstep.setVolume(gp.soundMuted ? -80f : gp.convertPercentToDb(gp.sfxVolume));
+                    footstep.loop();
+                    walkingSoundPlaying = true;
+                }
+
+                spriteCounter++;
+                if (spriteCounter > 12) {
+                    spriteNum = (spriteNum == 1) ? 2 : 1;
+                    spriteCounter = 0;
+                }
+            } else {
+                if (walkingSoundPlaying) {
+                    footstep.stop();
+                    walkingSoundPlaying = false;
+                }
             }
         } else {
             spriteNum = 1;
+
+            if (walkingSoundPlaying) {
+                footstep.stop();
+                walkingSoundPlaying = false;
+            }
         }
 
         if (invincible) {
@@ -184,6 +216,8 @@ public class Player extends Entity {
     public void triggerGameOver() {
         if (!gameOverShown) {
             gameOverShown = true;
+            footstep.stop();
+            walkingSoundPlaying = false;
             gp.stopGameThread();
 
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(gp);
@@ -208,6 +242,8 @@ public class Player extends Entity {
             if (reachHome.equals("House")) {
                 if (hasEgg && !victoryShown) {
                     victoryShown = true;
+                    footstep.stop();
+                    walkingSoundPlaying = false;
                     gp.stopGameThread();
 
                     JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(gp);

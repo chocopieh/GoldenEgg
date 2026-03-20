@@ -51,8 +51,9 @@ public class Main {
 
     public void showMenu() {
         gamePanel.stopGameThread();
+        gamePanel.bgMusic.stop();
+        menuPanel.stopMenuMusic();
 
-        // reset phím khi quay về menu
         gamePanel.keyH.upPressed = false;
         gamePanel.keyH.downPressed = false;
         gamePanel.keyH.leftPressed = false;
@@ -74,7 +75,9 @@ public class Main {
     public void startGame(String playerName) {
         gamePanel.stopGameThread();
 
-        // reset phím trước khi vào lại game
+        menuPanel.stopMenuMusic();
+        gamePanel.bgMusic.stop();
+
         gamePanel.keyH.upPressed = false;
         gamePanel.keyH.downPressed = false;
         gamePanel.keyH.leftPressed = false;

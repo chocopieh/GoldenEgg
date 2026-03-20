@@ -17,7 +17,8 @@ public class MenuPanel extends JPanel {
     // Khai báo biến Font toàn cục
     Font buttonFont;
 
-    Sound menuMusic = new Sound();
+    private Sound menuMusic = new Sound();
+    private boolean menuMusicLoaded = false;
     Sound clickSound = new Sound();
 
     public MenuPanel(Main main) {
@@ -187,15 +188,24 @@ public class MenuPanel extends JPanel {
         guide.showDialog();
     }
 
-    public void playMenuMusic() {
-        menuMusic.setFile("/res/audio/menu_music.wav");
+   public void playMenuMusic() {
+        if (!menuMusicLoaded) {
+            menuMusic.setFile("/res/sound/menu_music.wav");
+            menuMusicLoaded = true;
+        }
+
+        menuMusic.stop();
         menuMusic.play();
         menuMusic.loop();
     }
 
-    public void stopMenuMusic() { menuMusic.stop(); }
+    public void stopMenuMusic() {
+        if (menuMusic != null) {
+            menuMusic.stop();
+        }
+    }
     public void playClickSound() {
-        clickSound.setFile("/res/audio/click.wav");
+        clickSound.setFile("/res/sound/click.wav");
         clickSound.play();
     }
 }

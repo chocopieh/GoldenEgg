@@ -5,10 +5,11 @@ import java.awt.Dimension;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.util.ArrayList;
+
 import mygame.tile.TileManager;
 import mygame.entity.Player;
 import mygame.tile.CollisionChecker;
-import java.util.ArrayList;
 import mygame.entity.Chicken;
 import mygame.ai.PathFinder;
 
@@ -23,8 +24,7 @@ public class GamePanel extends JPanel implements Runnable {
     public final int screenWidth = tileSize * maxScreenCol;
     public final int screenHeight = tileSize * maxScreenRow;
 
-    // TẠM THỜI cho world = screen
-    // Nếu map của bạn lớn hơn màn hình thì đổi lại theo map thật
+    // World tạm = screen
     public final int maxWorldCol = 16;
     public final int maxWorldRow = 12;
 
@@ -33,16 +33,29 @@ public class GamePanel extends JPanel implements Runnable {
     // KHỞI TẠO HỆ THỐNG
     public TileManager tileM = new TileManager(this);
     public KeyHandler keyH = new KeyHandler();
+    public MouseHandler mouseH = new MouseHandler();
     public CollisionChecker cChecker = new CollisionChecker(this);
     public UI ui;
     public PathFinder pFinder = new PathFinder(this);
+    public Sound bgMusic = new Sound();
 
     Thread gameThread;
+
+    // GAME STATE
+    public int gameState;
+    public final int playState = 1;
+    public final int pauseState = 2;
+    public final int optionState = 3;
+
+    // ÂM THANH
+    public int musicVolume = 70;
+    public int sfxVolume = 80;
+    public boolean soundMuted = false;
 
     // TÊN NHÂN VẬT
     public String playerName = "Player";
 
-    // KHỞI TẠO THỰC THỂ
+    // THỰC THỂ
     public Player player;
     public ArrayList<Chicken> chickens = new ArrayList<>();
 
@@ -53,10 +66,15 @@ public class GamePanel extends JPanel implements Runnable {
         this.setBackground(Color.black);
         this.setDoubleBuffered(true);
         this.addKeyListener(keyH);
+        this.addMouseListener(mouseH);
+        this.addMouseMotionListener(mouseH);
         this.setFocusable(true);
 
         player = new Player(this, keyH);
         ui = new UI(this);
+
+        gameState = playState;
+
         setupGame();
     }
 
@@ -69,6 +87,10 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void setupGame() {
+        bgMusic.setFile("/res/sound/bg.wav");
+        applySoundSettings();
+        bgMusic.loop();
+
         tileM.resetMapObjects();
 
         if (player != null) {
@@ -80,6 +102,8 @@ public class GamePanel extends JPanel implements Runnable {
         keyH.leftPressed = false;
         keyH.rightPressed = false;
         keyH.escapePressed = false;
+        keyH.optionPressed = false;
+        keyH.enterPressed = false;
 
         chickens.clear();
 
@@ -128,29 +152,80 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void update() {
 
-        if (keyH.escapePressed) {
-            keyH.escapePressed = false;
-            stopGameThread();
-            main.showMenu();
-            return;
-        }
+        // phím O mở / đóng option
+        if (keyH.optionPressed) {
+            keyH.optionPressed = false;
 
-        if (player != null) {
-            player.update();
-        }
-
-        for (Chicken chicken : chickens) {
-            chicken.update();
-
-            if (player != null && player.getBounds().intersects(chicken.getBounds())) {
-                player.takeDamage(10);
+            if (gameState == playState) {
+                gameState = optionState;
+            } else if (gameState == optionState) {
+                gameState = playState;
+            } else if (gameState == pauseState) {
+                gameState = optionState;
             }
         }
 
-        if (player != null && player.health <= 0) {
-            player.triggerGameOver();
-            return;
+        // phím ESC mở pause menu
+        if (keyH.escapePressed) {
+            keyH.escapePressed = false;
+
+            if (gameState == playState) {
+                gameState = pauseState;
+                return;
+            } else if (gameState == pauseState) {
+                gameState = playState;
+                return;
+            } else if (gameState == optionState) {
+                gameState = pauseState;
+                return;
+            }
         }
+
+        if (gameState == playState) {
+
+            if (player != null) {
+                player.update();
+            }
+
+            for (Chicken chicken : chickens) {
+                chicken.update();
+
+                if (player != null && player.getBounds().intersects(chicken.getBounds())) {
+                    player.takeDamage(10);
+                }
+            }
+
+            if (player != null && player.health <= 0) {
+                player.triggerGameOver();
+                return;
+            }
+
+        } else if (gameState == pauseState) {
+            ui.updatePauseMenu();
+        } else if (gameState == optionState) {
+            ui.updateOptions();
+        }
+    }
+
+    public void applySoundSettings() {
+        if (soundMuted || musicVolume <= 0) {
+            bgMusic.stop();
+        } else {
+            bgMusic.setVolume(convertPercentToDb(musicVolume));
+
+            if (bgMusic.clip != null && !bgMusic.clip.isRunning()) {
+                bgMusic.loop();
+            }
+        }
+  }
+
+   public float convertPercentToDb(int percent) {
+        if (percent <= 0) return -80f; // tắt hẳn
+
+        float minDb = -80f;
+        float maxDb = 0f;
+
+        return minDb + (maxDb - minDb) * (percent / 100f);
     }
 
     @Override

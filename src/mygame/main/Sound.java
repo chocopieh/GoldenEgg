@@ -4,11 +4,14 @@ import java.net.URL;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
+import javax.sound.sampled.FloatControl;
 
 public class Sound {
 
-    private Clip clip;
+    Clip clip;
     private URL soundURL;
+    private FloatControl gainControl;
+    
 
     public void setFile(String path) {
         try {
@@ -21,6 +24,11 @@ public class Sound {
             AudioInputStream ais = AudioSystem.getAudioInputStream(soundURL);
             clip = AudioSystem.getClip();
             clip.open(ais);
+
+            if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+                gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -29,6 +37,8 @@ public class Sound {
     public void play() {
         try {
             if (clip != null) {
+                clip.stop();
+                clip.setFramePosition(0);
                 clip.start();
             }
         } catch (Exception e) {
@@ -39,6 +49,8 @@ public class Sound {
     public void loop() {
         try {
             if (clip != null) {
+                clip.stop();
+                clip.setFramePosition(0);
                 clip.loop(Clip.LOOP_CONTINUOUSLY);
             }
         } catch (Exception e) {
@@ -47,14 +59,11 @@ public class Sound {
     }
 
     public void stop() {
-        try {
-            if (clip != null) {
-                clip.stop();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (clip != null) {
+            clip.stop();
+            clip.setFramePosition(0);
         }
-    }
+}
 
     public void reset() {
         try {
@@ -68,5 +77,17 @@ public class Sound {
 
     public boolean isLoaded() {
         return clip != null;
+    }
+
+   public void setVolume(float volume) {
+        if (gainControl != null) {
+            float min = gainControl.getMinimum(); // thường là -80
+            float max = gainControl.getMaximum();
+
+            if (volume < min) volume = min;
+            if (volume > max) volume = max;
+
+            gainControl.setValue(volume);
+        }
     }
 }

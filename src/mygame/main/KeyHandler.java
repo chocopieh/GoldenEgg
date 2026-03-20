@@ -7,6 +7,8 @@ public class KeyHandler implements KeyListener {
 
     public boolean upPressed, downPressed, leftPressed, rightPressed;
     public boolean escapePressed;
+    public boolean optionPressed;
+    public boolean enterPressed;
 
     @Override
     public void keyTyped(KeyEvent e) {
@@ -30,6 +32,12 @@ public class KeyHandler implements KeyListener {
         }
         if (code == KeyEvent.VK_ESCAPE) {
             escapePressed = true;
+        }
+        if (code == KeyEvent.VK_O) {
+            optionPressed = true;
+        }
+        if (code == KeyEvent.VK_ENTER) {
+            enterPressed = true;
         }
     }
 
