@@ -17,52 +17,47 @@ public class TileManager {
     BufferedImage mazeBackground; 
     BufferedImage foregroundImage;
     BufferedImage eggImage;
+    BufferedImage weaponImage;
 
     public ArrayList<Rectangle> collisionRects = new ArrayList<>();
     public int playerStartX, playerStartY;
+    
     public Rectangle eggRect;
-    public Rectangle houseRect;
     public boolean eggCollected = false;
+
+    public Rectangle weaponRect;
+    public boolean weaponCollected = false;
+
+    public Rectangle houseRect;
+
+    private int animationCounter = 0;
 
     public TileManager(GamePanel gp) {
         this.gp = gp;
-        
-        // 1. Load ảnh
-        loadMazeImage("/res/maps/map_level1.png");
-        loadForegroundImage("/res/maps/map_foreground_level1.png");
-        loadEggImage("/res/tiles/egg.png");
-        
-        // 2. Load dữ liệu map
+        loadImages();
         loadTiledXML("src/res/maps/map_level1.tmx");
     }
 
-    private void loadMazeImage(String path) {
-        try {
-            mazeBackground = ImageIO.read(getClass().getResourceAsStream(path));
-        } catch (Exception e) {
-            System.out.println("Lỗi: Không tìm thấy ảnh nền tại " + path);
-        }
+    private void loadImages() {
+        mazeBackground = setupImage("/res/maps/map_level1.png");
+        foregroundImage = setupImage("/res/maps/map_foreground_level1.png");
+        eggImage = setupImage("/res/tiles/egg.png");
+        weaponImage = setupImage("/res/tiles/Weapons.png"); 
     }
 
-    private void loadForegroundImage(String path) {
-        try {
-            foregroundImage = ImageIO.read(getClass().getResourceAsStream(path));
-        } catch (Exception e) {
-            System.out.println("Lỗi: Không tìm thấy ảnh Foreground.");
-        }
-    }
-
-    private void loadEggImage(String path) {
+    private BufferedImage setupImage(String path) {
+        BufferedImage image = null;
         try {
             InputStream is = getClass().getResourceAsStream(path);
             if (is != null) {
-                eggImage = ImageIO.read(is);
+                image = ImageIO.read(is);
             } else {
-                System.out.println("Lỗi: Không tìm thấy file ảnh tại " + path);
+                System.out.println("Lỗi: Không tìm thấy file tại " + path);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return image;
     }
 
     public void resetMapObjects() {
@@ -70,10 +65,64 @@ public class TileManager {
         playerStartX = 0;
         playerStartY = 0;
         eggRect = null;
+        weaponRect = null;
         houseRect = null;
         eggCollected = false;
-
+        weaponCollected = false;
         loadTiledXML("src/res/maps/map_level1.tmx");
+    }
+
+    public void update() {
+        animationCounter++;
+    }
+
+    public void draw(Graphics2D g2) {
+        // 1. Vẽ nền map
+        if (mazeBackground != null) {
+            g2.drawImage(mazeBackground, 0, 0, gp.screenWidth, gp.screenHeight, null);
+        }
+
+        // 2. Vẽ TRỨNG (Chỉ vẽ nếu chưa nhặt)
+        if (eggImage != null && eggRect != null && !eggCollected) {
+            int eggOffset = (int) (Math.sin(animationCounter * 0.05) * 10); 
+            g2.drawImage(eggImage, eggRect.x, eggRect.y + eggOffset, 64, 64, null);
+        }
+
+        // 3. Vẽ VŨ KHÍ 
+        // ĐIỀU KIỆN QUAN TRỌNG: Chỉ vẽ khi eggCollected == true (đã nhặt trứng)
+        if (eggCollected && weaponImage != null && weaponRect != null && !weaponCollected) {
+            int weaponOffset = (int) (Math.sin(animationCounter * 0.06) * 8);
+            g2.drawImage(weaponImage, weaponRect.x, weaponRect.y + weaponOffset, 110, 60, null);
+        }
+    }
+
+    public void drawForeground(Graphics2D g2) {
+        if (foregroundImage != null) {
+            g2.drawImage(foregroundImage, 0, 0, gp.screenWidth, gp.screenHeight, null);
+        }
+    }
+
+    /**
+     * Kiểm tra va chạm giữa Player và các vật phẩm
+     */
+    public void checkItemCollisions(Rectangle playerRect) {
+        // Xử lý nhặt Trứng
+        if (!eggCollected && eggRect != null && playerRect.intersects(eggRect)) {
+            eggCollected = true;
+            gp.player.hasEgg = true; 
+            // Không gán eggRect = null ngay lập tức nếu bạn muốn giữ tọa độ, 
+            // nhưng ở đây ta dùng flag eggCollected để ẩn nó đi là được.
+            System.out.println("Bạn đã nhặt được Trứng! Vũ khí đã xuất hiện.");
+        }
+
+        // Xử lý nhặt Vũ khí
+        // ĐIỀU KIỆN QUAN TRỌNG: Phải nhặt trứng xong (eggCollected) mới cho nhặt vũ khí
+        if (eggCollected && !weaponCollected && weaponRect != null && playerRect.intersects(weaponRect)) {
+            weaponCollected = true;
+            gp.player.hasWeapon = true; 
+            weaponRect = null; 
+            System.out.println("Bạn đã nhặt được Vũ khí! (Player03 đã kích hoạt)");
+        }
     }
 
     public void loadTiledXML(String filePath) {
@@ -85,39 +134,29 @@ public class TileManager {
             doc.getDocumentElement().normalize();
 
             NodeList nList = doc.getElementsByTagName("objectgroup");
-
             for (int i = 0; i < nList.getLength(); i++) {
                 Element group = (Element) nList.item(i);
                 String groupName = group.getAttribute("name");
-
                 NodeList objectList = group.getElementsByTagName("object");
+                
                 for (int j = 0; j < objectList.getLength(); j++) {
                     Element obj = (Element) objectList.item(j);
-
                     int x = (int) Double.parseDouble(obj.getAttribute("x"));
                     int y = (int) Double.parseDouble(obj.getAttribute("y"));
-
-                    int width = obj.hasAttribute("width")
-                            ? (int) Double.parseDouble(obj.getAttribute("width"))
-                            : 48;
-                    int height = obj.hasAttribute("height")
-                            ? (int) Double.parseDouble(obj.getAttribute("height"))
-                            : 48;
+                    int width = obj.hasAttribute("width") ? (int) Double.parseDouble(obj.getAttribute("width")) : 48;
+                    int height = obj.hasAttribute("height") ? (int) Double.parseDouble(obj.getAttribute("height")) : 48;
 
                     if (groupName.equalsIgnoreCase("collision")) {
                         collisionRects.add(new Rectangle(x, y, width, height));
-                    } 
-                    else if (groupName.equalsIgnoreCase("Entities")) {
+                    } else if (groupName.equalsIgnoreCase("Entities")) {
                         String name = obj.getAttribute("name");
-
                         if (name.equalsIgnoreCase("PlayerStart")) {
-                            playerStartX = x;
-                            playerStartY = y;
-                        } 
-                        else if (name.equalsIgnoreCase("Eggs") || name.equalsIgnoreCase("Egg")) {
+                            playerStartX = x; playerStartY = y;
+                        } else if (name.equalsIgnoreCase("Eggs") || name.equalsIgnoreCase("Egg")) {
                             eggRect = new Rectangle(x, y, 64, 64);
-                        } 
-                        else if (name.equalsIgnoreCase("House")) {
+                        } else if (name.equalsIgnoreCase("Weapons")) {
+                            weaponRect = new Rectangle(x, y, 64, 64); 
+                        } else if (name.equalsIgnoreCase("House")) {
                             houseRect = new Rectangle(x, y, width, height);
                         }
                     }
@@ -125,31 +164,6 @@ public class TileManager {
             }
         } catch (Exception e) {
             System.out.println("Lỗi đọc XML Tiled: " + e.getMessage());
-        }
-    }
-
-    public void checkEggCollision(Rectangle playerRect) {
-        if (!eggCollected && eggRect != null && playerRect.intersects(eggRect)) {
-            eggCollected = true;
-            System.out.println("Chúc mừng! Bạn đã nhặt được trứng.");
-        }
-    }
-
-    public void draw(Graphics2D g2) {
-        // Vẽ nền
-        if (mazeBackground != null) {
-            g2.drawImage(mazeBackground, 0, 0, gp.screenWidth, gp.screenHeight, null);
-        }
-
-        // Vẽ trứng
-        if (eggImage != null && eggRect != null && !eggCollected) {
-            g2.drawImage(eggImage, eggRect.x, eggRect.y, 64, 64, null);
-        }
-    }
-
-    public void drawForeground(Graphics2D g2) {
-        if (foregroundImage != null) {
-            g2.drawImage(foregroundImage, 0, 0, gp.screenWidth, gp.screenHeight, null);
         }
     }
 }

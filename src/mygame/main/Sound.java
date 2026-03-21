@@ -4,20 +4,24 @@ import java.net.URL;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
-import javax.sound.sampled.FloatControl;
 
 public class Sound {
 
-    Clip clip;
+    private Clip clip;
     private URL soundURL;
-    private FloatControl gainControl;
-    
 
     public void setFile(String path) {
         try {
+            if (clip != null) {
+                clip.stop();
+                clip.close();
+            }
+
             soundURL = getClass().getResource(path);
+
             if (soundURL == null) {
                 System.out.println("Không tìm thấy file âm thanh: " + path);
+                clip = null;
                 return;
             }
 
@@ -25,12 +29,12 @@ public class Sound {
             clip = AudioSystem.getClip();
             clip.open(ais);
 
-            if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
-                gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-            }
+            System.out.println("Đã load âm thanh: " + path);
 
         } catch (Exception e) {
+            System.out.println("Lỗi load âm thanh: " + path);
             e.printStackTrace();
+            clip = null;
         }
     }
 
@@ -40,6 +44,9 @@ public class Sound {
                 clip.stop();
                 clip.setFramePosition(0);
                 clip.start();
+                System.out.println("Đang phát âm thanh...");
+            } else {
+                System.out.println("Clip đang null, không phát được.");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -59,11 +66,14 @@ public class Sound {
     }
 
     public void stop() {
-        if (clip != null) {
-            clip.stop();
-            clip.setFramePosition(0);
+        try {
+            if (clip != null) {
+                clip.stop();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-}
+    }
 
     public void reset() {
         try {
@@ -77,17 +87,5 @@ public class Sound {
 
     public boolean isLoaded() {
         return clip != null;
-    }
-
-   public void setVolume(float volume) {
-        if (gainControl != null) {
-            float min = gainControl.getMinimum(); // thường là -80
-            float max = gainControl.getMaximum();
-
-            if (volume < min) volume = min;
-            if (volume > max) volume = max;
-
-            gainControl.setValue(volume);
-        }
     }
 }

@@ -6,25 +6,28 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.util.ArrayList;
-
+import java.util.Iterator;
 import mygame.tile.TileManager;
 import mygame.entity.Player;
-import mygame.tile.CollisionChecker;
 import mygame.entity.Chicken;
+import mygame.tile.CollisionChecker;
 import mygame.ai.PathFinder;
 
 public class GamePanel extends JPanel implements Runnable {
 
     public Main main;
+     
+    public Sound menuMusic = new Sound();
+    public boolean isMenuMusicPlaying = false;
 
-    // THIẾT LẬP MÀN HÌNH
+    // THIẾT LẬP MÀN HÌNH (64x16 x 64x12)
     public final int tileSize = 64;
     public final int maxScreenCol = 16;
     public final int maxScreenRow = 12;
     public final int screenWidth = tileSize * maxScreenCol;
     public final int screenHeight = tileSize * maxScreenRow;
 
-    // World tạm = screen
+    // THIẾT LẬP THẾ GIỚI (Cùng kích thước với màn hình trong ví dụ này)
     public final int maxWorldCol = 16;
     public final int maxWorldRow = 12;
 
@@ -33,87 +36,104 @@ public class GamePanel extends JPanel implements Runnable {
     // KHỞI TẠO HỆ THỐNG
     public TileManager tileM = new TileManager(this);
     public KeyHandler keyH = new KeyHandler();
-    public MouseHandler mouseH = new MouseHandler();
     public CollisionChecker cChecker = new CollisionChecker(this);
     public UI ui;
     public PathFinder pFinder = new PathFinder(this);
-    public Sound bgMusic = new Sound();
-
+    public Sound gameOverMusic = new Sound();
+    public Sound victoryMusic = new Sound();
     Thread gameThread;
 
-    // GAME STATE
-    public int gameState;
-    public final int playState = 1;
-    public final int pauseState = 2;
-    public final int optionState = 3;
-
-    // ÂM THANH
-    public int musicVolume = 70;
-    public int sfxVolume = 80;
-    public boolean soundMuted = false;
-
-    // TÊN NHÂN VẬT
+    // THỰC THỂ (ENTITIES)
     public String playerName = "Player";
-
-    // THỰC THỂ
     public Player player;
     public ArrayList<Chicken> chickens = new ArrayList<>();
 
     public GamePanel(Main main) {
         this.main = main;
-
         this.setPreferredSize(new Dimension(screenWidth, screenHeight));
         this.setBackground(Color.black);
         this.setDoubleBuffered(true);
         this.addKeyListener(keyH);
-        this.addMouseListener(mouseH);
-        this.addMouseMotionListener(mouseH);
         this.setFocusable(true);
 
         player = new Player(this, keyH);
         ui = new UI(this);
-
-        gameState = playState;
-
         setupGame();
     }
 
     public void setPlayerName(String playerName) {
         this.playerName = playerName;
-
-        if (player != null) {
-            player.name = playerName;
-        }
+        if (player != null) player.name = playerName;
     }
 
     public void setupGame() {
-        bgMusic.setFile("/res/sound/bg.wav");
-        applySoundSettings();
-        bgMusic.loop();
-
+        // 1. Reset các đối tượng trên bản đồ (Trứng, Vũ khí, Va chạm)
         tileM.resetMapObjects();
 
+        // 2. Thiết lập lại Player
         if (player != null) {
             player.setDefaultValues();
+            player.name = this.playerName;
+            // Đặt vị trí xuất phát từ file XML
+            if (tileM.playerStartX != 0 || tileM.playerStartY != 0) {
+                player.x = tileM.playerStartX;
+                player.y = tileM.playerStartY;
+            }
         }
 
-        keyH.upPressed = false;
-        keyH.downPressed = false;
-        keyH.leftPressed = false;
-        keyH.rightPressed = false;
-        keyH.escapePressed = false;
-        keyH.optionPressed = false;
-        keyH.enterPressed = false;
+        // 3. Reset trạng thái phím điều khiển
+//        keyH.resetKeys(); // Giả định bạn có hàm này, hoặc set tay như code cũ
 
+        // 4. Khởi tạo danh sách Gà
         chickens.clear();
+        spawnInitialChickens();
+    }
+    public void playMenuMusic() {
+    if (!isMenuMusicPlaying) {
+            menuMusic.setFile("/res/audio/menu.wav");
+            if (menuMusic.isLoaded()) {
+                menuMusic.play();
+                menuMusic.loop();
+                isMenuMusicPlaying = true;
+            }
+        }
+    }
 
+    public void stopMenuMusic() {
+        if (menuMusic != null) {
+            menuMusic.stop();
+            isMenuMusicPlaying = false;
+        }
+    }
+    public void playVictoryMusic() {
+        System.out.println("Gọi playVictoryMusic");
+
+        victoryMusic.setFile("/res/audio/victory.wav");
+
+        if (victoryMusic.isLoaded()) {
+            victoryMusic.play();
+        } else {
+            System.out.println("Không load được victory.wav");
+        }
+    }
+    public void playGameOverMusic() {
+        gameOverMusic.stop();
+        gameOverMusic.setFile("/res/audio/gameover.wav");
+        if (gameOverMusic.isLoaded()) {
+            gameOverMusic.play();
+        }
+    }
+
+    private void spawnInitialChickens() {
+        // Thêm gà tại vị trí cụ thể hoặc ngẫu nhiên
         int centerX = screenWidth / 2 - tileSize / 2;
         int centerY = screenHeight / 2 - tileSize / 2;
-
         chickens.add(new Chicken(this, centerX, centerY));
     }
 
     public void startGameThread() {
+        stopMenuMusic();
+
         if (gameThread == null || !gameThread.isAlive()) {
             gameThread = new Thread(this);
             gameThread.start();
@@ -151,81 +171,48 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
-
-        // phím O mở / đóng option
-        if (keyH.optionPressed) {
-            keyH.optionPressed = false;
-
-            if (gameState == playState) {
-                gameState = optionState;
-            } else if (gameState == optionState) {
-                gameState = playState;
-            } else if (gameState == pauseState) {
-                gameState = optionState;
-            }
-        }
-
-        // phím ESC mở pause menu
+        // 1. Thoát về Menu chính
         if (keyH.escapePressed) {
             keyH.escapePressed = false;
+            stopGameThread();
+            main.showMenu();
+            playMenuMusic();
+            return;
+        }
 
-            if (gameState == playState) {
-                gameState = pauseState;
-                return;
-            } else if (gameState == pauseState) {
-                gameState = playState;
-                return;
-            } else if (gameState == optionState) {
-                gameState = pauseState;
-                return;
+        // 2. Cập nhật Player và Kiểm tra nhặt đồ
+        if (player != null) {
+            player.update();
+            // Đây là nơi quan trọng: Check nhặt trứng -> Unlock Vũ khí
+            tileM.checkItemCollisions(player.getBounds());
+        }
+
+        // 3. Cập nhật danh sách Gà (Dùng Iterator để xóa an toàn khi gà chết)
+        Iterator<Chicken> iterator = chickens.iterator();
+        while (iterator.hasNext()) {
+            Chicken chicken = iterator.next();
+            
+            if (chicken.life <= 0) {
+                iterator.remove();
+                continue;
+            }
+
+            chicken.update();
+
+            // Va chạm gây sát thương cho người chơi
+            if (player != null && player.getBounds().intersects(chicken.getBounds())) {
+                player.takeDamage(10); 
             }
         }
 
-        if (gameState == playState) {
-
-            if (player != null) {
-                player.update();
-            }
-
-            for (Chicken chicken : chickens) {
-                chicken.update();
-
-                if (player != null && player.getBounds().intersects(chicken.getBounds())) {
-                    player.takeDamage(10);
-                }
-            }
-
-            if (player != null && player.health <= 0) {
-                player.triggerGameOver();
-                return;
-            }
-
-        } else if (gameState == pauseState) {
-            ui.updatePauseMenu();
-        } else if (gameState == optionState) {
-            ui.updateOptions();
+        // 4. Kiểm tra điều kiện Thất bại
+        if (player != null && player.health <= 0) {
+            player.triggerGameOver();
+            return;
         }
-    }
-
-    public void applySoundSettings() {
-        if (soundMuted || musicVolume <= 0) {
-            bgMusic.stop();
-        } else {
-            bgMusic.setVolume(convertPercentToDb(musicVolume));
-
-            if (bgMusic.clip != null && !bgMusic.clip.isRunning()) {
-                bgMusic.loop();
-            }
-        }
-  }
-
-   public float convertPercentToDb(int percent) {
-        if (percent <= 0) return -80f; // tắt hẳn
-
-        float minDb = -80f;
-        float maxDb = 0f;
-
-        return minDb + (maxDb - minDb) * (percent / 100f);
+        
+        // 5. Cập nhật logic bản đồ (animation lơ lửng của vật phẩm)
+        tileM.update();
     }
 
     @Override
@@ -233,18 +220,25 @@ public class GamePanel extends JPanel implements Runnable {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
 
+        // --- VẼ THEO THỨ TỰ LỚP (Z-INDEX) ---
+
+        // Lớp 1: Bản đồ nền & Vật phẩm (Trứng/Vũ khí sẽ được TileManager quản lý ẩn/hiện)
         tileM.draw(g2);
 
+        // Lớp 2: Các thực thể (Gà)
         for (Chicken chicken : chickens) {
             chicken.draw(g2);
         }
 
+        // Lớp 3: Người chơi (Vẽ sau gà để đè lên gà khi đi sát)
         if (player != null) {
             player.draw(g2);
         }
 
+        // Lớp 4: Tiền cảnh (Cây cối che đầu nhân vật)
         tileM.drawForeground(g2);
 
+        // Lớp 5: Giao diện người dùng (UI luôn nằm trên cùng)
         if (ui != null) {
             ui.draw(g2);
         }

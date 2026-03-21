@@ -1,3 +1,4 @@
+
 package mygame.main;
 
 import javax.swing.*;
@@ -51,52 +52,18 @@ public class Main {
 
     public void showMenu() {
         gamePanel.stopGameThread();
-        gamePanel.bgMusic.stop();
-        menuPanel.stopMenuMusic();
-
-        gamePanel.keyH.upPressed = false;
-        gamePanel.keyH.downPressed = false;
-        gamePanel.keyH.leftPressed = false;
-        gamePanel.keyH.rightPressed = false;
-        gamePanel.keyH.escapePressed = false;
-
         cardLayout.show(container, "menu");
-        container.revalidate();
-        container.repaint();
-
-        SwingUtilities.invokeLater(() -> {
-            menuPanel.requestFocusInWindow();
-            menuPanel.grabFocus();
-        });
-
+        menuPanel.requestFocusInWindow();
         menuPanel.playMenuMusic();
     }
 
     public void startGame(String playerName) {
-        gamePanel.stopGameThread();
-
-        menuPanel.stopMenuMusic();
-        gamePanel.bgMusic.stop();
-
-        gamePanel.keyH.upPressed = false;
-        gamePanel.keyH.downPressed = false;
-        gamePanel.keyH.leftPressed = false;
-        gamePanel.keyH.rightPressed = false;
-        gamePanel.keyH.escapePressed = false;
-
         gamePanel.setPlayerName(playerName);
         gamePanel.setupGame();
-
         cardLayout.show(container, "game");
-        container.revalidate();
-        container.repaint();
-
-        SwingUtilities.invokeLater(() -> {
-            gamePanel.requestFocusInWindow();
-            gamePanel.grabFocus();
-            gamePanel.startGameThread();
-        });
-    }
+        gamePanel.requestFocusInWindow();
+        gamePanel.startGameThread();
+}
 
     public static void main(String[] args) {
         new Main();
