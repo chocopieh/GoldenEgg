@@ -329,4 +329,19 @@ public class Player extends Entity {
             gameOverDialog.showDialog();
         }
     }
+     public void triggerGameWin() {
+        if (isWalkingSoundPlaying) {
+            footstep.stop();
+            footstep.reset();
+            isWalkingSoundPlaying = false;
+        }
+
+        gp.showGameWinScreen();
+    }
+    public void stopFootstepSound() {
+        if (isWalkingSoundPlaying) {
+            footstep.stop();
+            isWalkingSoundPlaying = false;
+        }
+    }
 }   

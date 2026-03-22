@@ -19,6 +19,14 @@ public class GamePanel extends JPanel implements Runnable {
      
     public Sound menuMusic = new Sound();
     public boolean isMenuMusicPlaying = false;
+    // ===== GAME STATE =====
+    public final int STATE_PLAY = 0;
+    public final int STATE_LEVEL_COMPLETE = 1;
+    public final int STATE_LEVEL2_PLAY = 2;
+    public final int STATE_GAME_WIN = 3;
+    public final int STATE_PAUSE = 4;
+
+    public int gameState = STATE_PLAY;
 
     // THIẾT LẬP MÀN HÌNH (64x16 x 64x12)
     public final int tileSize = 64;
@@ -32,15 +40,17 @@ public class GamePanel extends JPanel implements Runnable {
     public final int maxWorldRow = 12;
 
     int FPS = 60;
-
     // KHỞI TẠO HỆ THỐNG
     public TileManager tileM = new TileManager(this);
     public KeyHandler keyH = new KeyHandler();
     public CollisionChecker cChecker = new CollisionChecker(this);
     public UI ui;
     public PathFinder pFinder = new PathFinder(this);
+    public MouseHandler mouseH = new MouseHandler();
     public Sound gameOverMusic = new Sound();
     public Sound victoryMusic = new Sound();
+    public Sound eggSound = new Sound();
+    public int currentLevel = 1;
     Thread gameThread;
 
     // THỰC THỂ (ENTITIES)
@@ -55,6 +65,8 @@ public class GamePanel extends JPanel implements Runnable {
         this.setDoubleBuffered(true);
         this.addKeyListener(keyH);
         this.setFocusable(true);
+        this.addMouseListener(mouseH);
+        this.addMouseMotionListener(mouseH);
 
         player = new Player(this, keyH);
         ui = new UI(this);
@@ -87,6 +99,7 @@ public class GamePanel extends JPanel implements Runnable {
         // 4. Khởi tạo danh sách Gà
         chickens.clear();
         spawnInitialChickens();
+        eggSound.setFile("/res/audio/egg.wav");
     }
     public void playMenuMusic() {
     if (!isMenuMusicPlaying) {
@@ -105,6 +118,7 @@ public class GamePanel extends JPanel implements Runnable {
             isMenuMusicPlaying = false;
         }
     }
+    
     public void playVictoryMusic() {
         System.out.println("Gọi playVictoryMusic");
 
@@ -116,6 +130,12 @@ public class GamePanel extends JPanel implements Runnable {
             System.out.println("Không load được victory.wav");
         }
     }
+
+    public void showLevel1WinScreen() {
+        gameState = STATE_LEVEL_COMPLETE;
+        playVictoryMusic(); // nếu bạn muốn phát nhạc chiến thắng
+    }
+    
     public void playGameOverMusic() {
         gameOverMusic.stop();
         gameOverMusic.setFile("/res/audio/gameover.wav");
@@ -171,20 +191,60 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
-        // 1. Thoát về Menu chính
-        if (keyH.escapePressed) {
-            keyH.escapePressed = false;
-            stopGameThread();
-            main.showMenu();
-            playMenuMusic();
+        if (gameState == STATE_LEVEL_COMPLETE) {
+            if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                mouseH.clicked = false;
+                startLevel2();
+            }
             return;
         }
+        if (gameState == STATE_GAME_WIN) {
+            if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                mouseH.clicked = false;
+                stopAllSounds();
+                stopGameThread();
+                main.showMenu();
+            }
+            return;
+        }
+      // ESC = Pause / Resume
+        if (keyH.escapePressed) {
+            keyH.escapePressed = false;
+
+            if (gameState == STATE_PLAY) {
+                gameState = STATE_PAUSE;
+
+                if (player != null) {
+                    player.stopFootstepSound();
+                }
+                return;
+
+            } else if (gameState == STATE_PAUSE) {
+                gameState = STATE_PLAY;
+                return;
+            }
+        }
+
+        if (gameState == STATE_PAUSE) {
+            return;
+        }
+
+        if (gameState != STATE_PLAY) return;
 
         // 2. Cập nhật Player và Kiểm tra nhặt đồ
         if (player != null) {
             player.update();
-            // Đây là nơi quan trọng: Check nhặt trứng -> Unlock Vũ khí
+             // Đây là nơi quan trọng: Check nhặt trứng -> Unlock Vũ khí
             tileM.checkItemCollisions(player.getBounds());
+            if (tileM.houseRect != null && player.hasEgg && player.getBounds().intersects(tileM.houseRect)) {
+                if (currentLevel == 1) {
+                    showLevel1WinScreen();
+                    return;
+                } else if (currentLevel == 2) {
+                    player.triggerGameWin();
+                    return;
+                }
+            }
         }
 
         // 3. Cập nhật danh sách Gà (Dùng Iterator để xóa an toàn khi gà chết)
@@ -212,7 +272,7 @@ public class GamePanel extends JPanel implements Runnable {
         }
         
         // 5. Cập nhật logic bản đồ (animation lơ lửng của vật phẩm)
-        tileM.update();
+        tileM.update();  
     }
 
     @Override
@@ -233,6 +293,7 @@ public class GamePanel extends JPanel implements Runnable {
         // Lớp 3: Người chơi (Vẽ sau gà để đè lên gà khi đi sát)
         if (player != null) {
             player.draw(g2);
+           
         }
 
         // Lớp 4: Tiền cảnh (Cây cối che đầu nhân vật)
@@ -242,7 +303,57 @@ public class GamePanel extends JPanel implements Runnable {
         if (ui != null) {
             ui.draw(g2);
         }
+        if (gameState == STATE_PAUSE) {
+            g2.setColor(new Color(0, 0, 0, 180));
+            g2.fillRect(0, 0, screenWidth, screenHeight);
 
+            g2.setColor(Color.WHITE);
+            g2.setFont(g2.getFont().deriveFont(40f));
+            g2.drawString("PAUSED", screenWidth / 2 - 90, screenHeight / 2 - 20);
+
+            g2.setFont(g2.getFont().deriveFont(22f));
+            g2.drawString("Nhan ESC de tiep tuc", screenWidth / 2 - 110, screenHeight / 2 + 30);
+        }
         g2.dispose();
+    }
+    
+    public void completeLevel() {
+        gameState = STATE_LEVEL_COMPLETE;
+        playVictoryMusic();
+    }
+    
+   public void startLevel2() {
+        currentLevel = 2;
+        gameState = STATE_PLAY;
+
+        tileM.loadLevelMap(2);
+
+        if (player != null) {
+            player.setDefaultValues();
+            player.name = this.playerName;
+
+            if (tileM.playerStartX != 0 || tileM.playerStartY != 0) {
+                player.x = tileM.playerStartX;
+                player.y = tileM.playerStartY;
+            }
+        }
+
+        chickens.clear();
+        spawnInitialChickens();
+    }
+    public void stopAllSounds() {
+        menuMusic.stop();
+        victoryMusic.stop();
+        gameOverMusic.stop();
+        eggSound.stop();
+
+        if (player != null) {
+            player.stopFootstepSound();
+        }
+    }
+
+    public void showGameWinScreen() {
+        gameState = STATE_GAME_WIN;
+        playVictoryMusic();
     }
 }

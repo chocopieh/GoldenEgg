@@ -31,6 +31,7 @@ public class TileManager {
     public Rectangle houseRect;
 
     private int animationCounter = 0;
+    public String currentMapPath = "src/res/maps/map_level1.tmx";
 
     public TileManager(GamePanel gp) {
         this.gp = gp;
@@ -111,7 +112,8 @@ public class TileManager {
             eggCollected = true;
             gp.player.hasEgg = true; 
             // Không gán eggRect = null ngay lập tức nếu bạn muốn giữ tọa độ, 
-            // nhưng ở đây ta dùng flag eggCollected để ẩn nó đi là được.
+            // nhưng ở đây ta dùng flag eggCollected để ẩn nó đi là được
+             gp.eggSound.play(); // 🔊 THÊM DÒNG NÀY
             System.out.println("Bạn đã nhặt được Trứng! Vũ khí đã xuất hiện.");
         }
 
@@ -165,5 +167,18 @@ public class TileManager {
         } catch (Exception e) {
             System.out.println("Lỗi đọc XML Tiled: " + e.getMessage());
         }
+    }
+    public void loadLevelMap(int level) {
+        if (level == 1) {
+            currentMapPath = "src/res/maps/map_level1.tmx";
+            mazeBackground = setupImage("/res/maps/map_level1.png");
+            foregroundImage = setupImage("/res/maps/map_foreground_level1.png");
+        } else if (level == 2) {
+            currentMapPath = "src/res/maps/map_level2.tmx";
+            mazeBackground = setupImage("/res/maps/map_level2.png");
+            foregroundImage = setupImage("/res/maps/map_foreground_level2.png");
+        }
+
+        resetMapObjects();
     }
 }

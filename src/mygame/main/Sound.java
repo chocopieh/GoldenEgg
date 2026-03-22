@@ -51,6 +51,9 @@ public class Sound {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        clip.stop();
+        clip.setFramePosition(0);
+        clip.start();
     }
 
     public void loop() {

@@ -51,8 +51,16 @@ public class Main {
     }
 
     public void showMenu() {
+
+        // 🔥 TẮT TOÀN BỘ ÂM THANH GAME
+        gamePanel.stopAllSounds();
+
+        // dừng game loop
         gamePanel.stopGameThread();
+        gamePanel.stopAllSounds();
+        // chuyển về menu
         cardLayout.show(container, "menu");
+
         menuPanel.requestFocusInWindow();
         menuPanel.playMenuMusic();
     }
