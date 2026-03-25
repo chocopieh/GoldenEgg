@@ -15,10 +15,8 @@ public class UI {
     Font bigFont;
 
     // Nút qua màn
-    public Rectangle nextLevelBtn = new Rectangle(340, 390, 340, 80);
-
-    // 🔥 THÊM DÒNG NÀY
-    public Rectangle backBtn = new Rectangle(340, 400, 340, 80);
+    public Rectangle nextLevelBtn = new Rectangle(340, 380, 340, 80);
+    public Rectangle backBtn = new Rectangle(340, 490, 340, 80);
 
     public UI(GamePanel gp) {
         this.gp = gp;
@@ -32,10 +30,13 @@ public class UI {
     public void draw(Graphics2D g2) {
         drawPlayerHUD(g2);
 
+        // Kiểm tra và vẽ các màn hình chiến thắng
         if (gp.gameState == gp.STATE_LEVEL_COMPLETE) {
-            drawLevel1WinScreen(g2);
+            drawLevel1WinScreen(g2);  // Màn hình hoàn thành level 1
         } else if (gp.gameState == gp.STATE_GAME_WIN) {
-            drawGameWinScreen(g2);
+            drawGameWinScreen(g2);  // Màn hình chiến thắng
+        } else if (gp.gameState == gp.STATE_GAME_COMPLETED) {
+            drawGameCompletedScreen(g2);  // Màn hình hoàn thành game
         }
     }
 
@@ -228,4 +229,47 @@ public class UI {
         int btnTextY = backBtn.y + 48;
         g2.drawString(btnText, btnTextX, btnTextY);
        }
+   private void drawGameCompletedScreen(Graphics2D g2) {
+    // Vẽ nền tối
+        g2.setColor(new Color(0, 0, 0, 180));
+        g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
+
+        // Tiêu đề
+        g2.setFont(loadFont(34f));
+        g2.setColor(new Color(255, 230, 90));
+        String title = "BAN ĐA HOAN THANH GAME!";
+        int titleX = gp.screenWidth / 2 - g2.getFontMetrics().stringWidth(title) / 2;
+        g2.drawString(title, titleX, 220);
+
+        // Mô tả
+        g2.setFont(loadFont(18f));
+        g2.setColor(Color.WHITE);
+        String sub = "Choi lai hoac quay ve man hinh chinh";
+        int subX = gp.screenWidth / 2 - g2.getFontMetrics().stringWidth(sub) / 2;
+        g2.drawString(sub, subX, 280);
+
+        // Nút "Chơi lại"
+        boolean playAgainHover = nextLevelBtn.contains(gp.mouseH.mouseX, gp.mouseH.mouseY);
+        g2.setColor(playAgainHover ? new Color(255, 210, 90) : new Color(255, 180, 50));
+        g2.fillRoundRect(nextLevelBtn.x, nextLevelBtn.y, nextLevelBtn.width, nextLevelBtn.height, 25, 25);
+        g2.setColor(Color.BLACK);
+        g2.drawRoundRect(nextLevelBtn.x, nextLevelBtn.y, nextLevelBtn.width, nextLevelBtn.height, 25, 25);
+        g2.setFont(loadFont(22f));
+        String playAgainText = "CHOI LAI";
+        int playAgainX = nextLevelBtn.x + nextLevelBtn.width / 2 - g2.getFontMetrics().stringWidth(playAgainText) / 2;
+        int playAgainY = nextLevelBtn.y + 48;
+        g2.drawString(playAgainText, playAgainX, playAgainY);
+
+        // Nút "Quay về Menu"
+        boolean backToMenuHover = backBtn.contains(gp.mouseH.mouseX, gp.mouseH.mouseY);
+        g2.setColor(backToMenuHover ? new Color(255, 210, 90) : new Color(255, 180, 50));
+        g2.fillRoundRect(backBtn.x, backBtn.y, backBtn.width, backBtn.height, 25, 25);
+        g2.setColor(Color.BLACK);
+        g2.drawRoundRect(backBtn.x, backBtn.y, backBtn.width, backBtn.height, 25, 25);
+        g2.setFont(loadFont(22f));
+        String backToMenuText = "QUAY VE MENU";
+        int backToMenuX = backBtn.x + backBtn.width / 2 - g2.getFontMetrics().stringWidth(backToMenuText) / 2;
+        int backToMenuY = backBtn.y + 48;
+        g2.drawString(backToMenuText, backToMenuX, backToMenuY);
+    }
 }

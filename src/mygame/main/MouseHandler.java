@@ -19,7 +19,7 @@ public class MouseHandler extends MouseAdapter {
     @Override
     public void mouseReleased(MouseEvent e) {
         pressed = false;
-        clicked = true; // dùng cho click 1 lần
+        clicked = true;
         mouseX = e.getX();
         mouseY = e.getY();
     }
@@ -34,5 +34,9 @@ public class MouseHandler extends MouseAdapter {
     public void mouseDragged(MouseEvent e) {
         mouseX = e.getX();
         mouseY = e.getY();
+    }
+
+    public void resetClick() {
+        clicked = false;
     }
 }

@@ -25,6 +25,7 @@ public class GamePanel extends JPanel implements Runnable {
     public final int STATE_LEVEL2_PLAY = 2;
     public final int STATE_GAME_WIN = 3;
     public final int STATE_PAUSE = 4;
+    public final int STATE_GAME_COMPLETED = 5;  // Thêm trạng thái hoàn thành game
 
     public int gameState = STATE_PLAY;
 
@@ -79,28 +80,25 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void setupGame() {
-        // 1. Reset các đối tượng trên bản đồ (Trứng, Vũ khí, Va chạm)
-        tileM.resetMapObjects();
-
-        // 2. Thiết lập lại Player
+        // Reset các đối tượng và các trạng thái
+        tileM.resetMapObjects();  // Reset bản đồ (các vật phẩm, đối tượng)
         if (player != null) {
-            player.setDefaultValues();
+            player.setDefaultValues();  // Cài đặt lại giá trị mặc định cho người chơi
             player.name = this.playerName;
-            // Đặt vị trí xuất phát từ file XML
+
+            // Đặt lại vị trí của người chơi về điểm xuất phát của level 1
             if (tileM.playerStartX != 0 || tileM.playerStartY != 0) {
                 player.x = tileM.playerStartX;
                 player.y = tileM.playerStartY;
             }
         }
 
-        // 3. Reset trạng thái phím điều khiển
-//        keyH.resetKeys(); // Giả định bạn có hàm này, hoặc set tay như code cũ
-
-        // 4. Khởi tạo danh sách Gà
-        chickens.clear();
-        spawnInitialChickens();
-        eggSound.setFile("/res/audio/egg.wav");
+        chickens.clear();  // Xóa danh sách gà
+        spawnInitialChickens();  // Tạo lại các gà cho cấp độ
+        eggSound.setFile("/res/audio/egg.wav");  // Tạo lại âm thanh trứng
+        tileM.resetMapObjects();
     }
+    
     public void playMenuMusic() {
     if (!isMenuMusicPlaying) {
             menuMusic.setFile("/res/audio/menu.wav");
@@ -133,6 +131,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void showLevel1WinScreen() {
         gameState = STATE_LEVEL_COMPLETE;
+        mouseH.resetClick();
         playVictoryMusic(); // nếu bạn muốn phát nhạc chiến thắng
     }
     
@@ -171,7 +170,9 @@ public class GamePanel extends JPanel implements Runnable {
         long lastTime = System.nanoTime();
         long currentTime;
 
-        while (gameThread != null) {
+        Thread currentThread = Thread.currentThread();
+
+        while (gameThread == currentThread) {
             currentTime = System.nanoTime();
             delta += (currentTime - lastTime) / drawInterval;
             lastTime = currentTime;
@@ -191,23 +192,27 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
+        // Nếu game ở trạng thái "Level Complete"
         if (gameState == STATE_LEVEL_COMPLETE) {
             if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                 mouseH.clicked = false;
-                startLevel2();
+                startLevel2();  // Tiến tới cấp độ 2
             }
             return;
         }
+
+        // Nếu game ở trạng thái "Game Win"
         if (gameState == STATE_GAME_WIN) {
             if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                mouseH.clicked = false;
+                mouseH.resetClick();
                 stopAllSounds();
                 stopGameThread();
-                main.showMenu();
+                main.showMenu();  // Quay lại menu chính
             }
             return;
         }
-      // ESC = Pause / Resume
+
+        // ESC = Pause / Resume
         if (keyH.escapePressed) {
             keyH.escapePressed = false;
 
@@ -224,24 +229,49 @@ public class GamePanel extends JPanel implements Runnable {
                 return;
             }
         }
+        // Nếu game ở trạng thái "Game Completed"
+        if (gameState == STATE_GAME_COMPLETED) {
+            // Kiểm tra nút "Chơi lại"
+            if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                mouseH.resetClick();  // Reset trạng thái clicked
+                restartGame();  // Chơi lại game từ đầu
+            }
 
+            // Kiểm tra nút "Quay về Menu"
+            else if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                mouseH.resetClick();  // Reset trạng thái clicked
+                stopAllSounds();  // Dừng tất cả âm thanh
+                stopGameThread();  // Dừng game
+                main.showMenu();  // Quay lại menu chính
+            }
+            return;  // Dừng cập nhật nếu game đã hoàn thành
+        }
+         // Kiểm tra trạng thái "Level 2" và điều kiện hoàn thành game
+        if (gameState == STATE_LEVEL2_PLAY) {
+            if (player != null && player.hasEgg && player.getBounds().intersects(tileM.houseRect)) {
+                showGameCompletedScreen();  // Hiển thị màn hình hoàn thành game
+                return;
+            }
+        }
+
+        // Nếu game đang ở trạng thái "Pause", không làm gì thêm
         if (gameState == STATE_PAUSE) {
             return;
         }
 
+        // Nếu game không phải đang ở trạng thái "Play", không làm gì thêm
         if (gameState != STATE_PLAY) return;
 
         // 2. Cập nhật Player và Kiểm tra nhặt đồ
         if (player != null) {
             player.update();
-             // Đây là nơi quan trọng: Check nhặt trứng -> Unlock Vũ khí
             tileM.checkItemCollisions(player.getBounds());
             if (tileM.houseRect != null && player.hasEgg && player.getBounds().intersects(tileM.houseRect)) {
                 if (currentLevel == 1) {
-                    showLevel1WinScreen();
+                    showLevel1WinScreen();  // Hiển thị màn hình "Level Complete" khi hoàn thành Level 1
                     return;
                 } else if (currentLevel == 2) {
-                    player.triggerGameWin();
+                    showGameCompletedScreen(); // dùng cái bạn đã có
                     return;
                 }
             }
@@ -251,7 +281,7 @@ public class GamePanel extends JPanel implements Runnable {
         Iterator<Chicken> iterator = chickens.iterator();
         while (iterator.hasNext()) {
             Chicken chicken = iterator.next();
-            
+
             if (chicken.life <= 0) {
                 iterator.remove();
                 continue;
@@ -270,7 +300,7 @@ public class GamePanel extends JPanel implements Runnable {
             player.triggerGameOver();
             return;
         }
-        
+
         // 5. Cập nhật logic bản đồ (animation lơ lửng của vật phẩm)
         tileM.update();  
     }
@@ -317,6 +347,17 @@ public class GamePanel extends JPanel implements Runnable {
         g2.dispose();
     }
     
+    public void startNewGame() {
+        // Reset tất cả các trạng thái game
+        gameState = STATE_PLAY;  // Trạng thái bắt đầu chơi game
+        currentLevel = 1; // Bắt đầu từ level 1
+        tileM.loadLevelMap(1); // 🔥 QUAN TRỌNG: load lại map 1
+        setupGame();  // Cài đặt lại game
+        stopAllSounds();  // Dừng âm thanh
+        stopGameThread();  // Dừng thread game cũ
+        startGameThread();  // Bắt đầu thread game mới
+    }
+    
     public void completeLevel() {
         gameState = STATE_LEVEL_COMPLETE;
         playVictoryMusic();
@@ -355,5 +396,23 @@ public class GamePanel extends JPanel implements Runnable {
     public void showGameWinScreen() {
         gameState = STATE_GAME_WIN;
         playVictoryMusic();
+    }
+  
+    public void showGameCompletedScreen() {
+        gameState = STATE_GAME_COMPLETED;
+        mouseH.clicked = false;
+        if (player != null) player.stopFootstepSound();
+        playVictoryMusic();
+        repaint();
+    }
+   public void restartGame() {
+        // Reset trạng thái game và cấp độ
+        gameState = STATE_PLAY;  // Trạng thái chơi game
+        currentLevel = 1;  // Quay lại level 1
+        tileM.loadLevelMap(1);
+        setupGame();  // Cài đặt lại game (sẽ reset tất cả các đối tượng)
+        stopAllSounds();  // Dừng tất cả âm thanh
+        stopGameThread();  // Dừng thread game cũ
+        startGameThread();  // Bắt đầu thread game mới
     }
 }

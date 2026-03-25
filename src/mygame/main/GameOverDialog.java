@@ -6,7 +6,15 @@ import java.awt.event.ActionEvent;
 import java.io.InputStream;
 
 public class GameOverDialog extends JDialog {
+     public interface DialogListener {
+        void onDialogClosed();
+    }
 
+    private DialogListener listener;
+
+    public void addDialogListener(DialogListener listener) {
+        this.listener = listener;
+    }
     private Font gameFont;
 
     public GameOverDialog(JFrame parent, String playerName, Main main) {
@@ -56,7 +64,7 @@ public class GameOverDialog extends JDialog {
         nameLabel.setForeground(new Color(255, 210, 210));
         nameLabel.setBounds(40, 70, 340, 30);
         panel.add(nameLabel);
-
+        
         JLabel failLabel = new JLabel("You were defeated!", SwingConstants.CENTER);
         failLabel.setFont(gameFont.deriveFont(Font.PLAIN, 16f));
         failLabel.setForeground(new Color(255, 220, 220));
@@ -70,6 +78,20 @@ public class GameOverDialog extends JDialog {
         JButton menuBtn = createButton("MENU");
         menuBtn.setBounds(230, 150, 120, 40);
         panel.add(menuBtn);
+        replayBtn.addActionListener(e -> {
+            dispose(); // Close the dialog
+            main.startGame(playerName); // Restart the game
+            if (listener != null) {
+                listener.onDialogClosed(); // Notify that the dialog has been closed
+            }
+        });
+        menuBtn.addActionListener(e -> {
+            dispose(); // Close the dialog
+            main.showMenu(); // Show the main menu
+            if (listener != null) {
+                listener.onDialogClosed(); // Notify that the dialog has been closed
+            }
+        });
 
         replayBtn.addActionListener(e -> {
             dispose();

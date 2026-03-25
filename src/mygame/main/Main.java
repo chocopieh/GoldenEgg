@@ -1,4 +1,5 @@
 
+
 package mygame.main;
 
 import javax.swing.*;
@@ -63,6 +64,9 @@ public class Main {
 
         menuPanel.requestFocusInWindow();
         menuPanel.playMenuMusic();
+        if (gamePanel != null) {
+            gamePanel.startNewGame();  // Gọi để reset lại game
+        }   
     }
 
     public void startGame(String playerName) {

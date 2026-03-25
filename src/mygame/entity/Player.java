@@ -211,23 +211,7 @@ public class Player extends Entity {
             if (reachHome.equals("House")) {
             if (hasEgg && !victoryShown) {
                 victoryShown = true;
-
-                // Tắt ngay tiếng bước chân
-                footstep.stop();
-                footstep.reset();
-                isWalkingSoundPlaying = false;
-
-                // Dừng game
-                gp.stopGameThread();
-
-                // Phát nhạc chiến thắng
-                gp.playVictoryMusic();
-
-                // Hiện giao diện chiến thắng cùng lúc
-                JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(gp);
-                VictoryDialog winDialog = new VictoryDialog(parentFrame, name, gp.main);
-                winDialog.showDialog();
-
+                gp.showGameCompletedScreen(); // 🔥 CHỈ GỌI CÁI NÀY
             } else if (!hasEgg) {
                 System.out.println("Tìm trứng đã!");
             }
@@ -335,8 +319,7 @@ public class Player extends Entity {
             footstep.reset();
             isWalkingSoundPlaying = false;
         }
-
-        gp.showGameWinScreen();
+       gp.showGameCompletedScreen();
     }
     public void stopFootstepSound() {
         if (isWalkingSoundPlaying) {

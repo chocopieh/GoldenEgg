@@ -70,7 +70,7 @@ public class TileManager {
         houseRect = null;
         eggCollected = false;
         weaponCollected = false;
-        loadTiledXML("src/res/maps/map_level1.tmx");
+        loadTiledXML(currentMapPath);
     }
 
     public void update() {

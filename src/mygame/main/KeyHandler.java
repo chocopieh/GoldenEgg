@@ -8,6 +8,7 @@ public class KeyHandler implements KeyListener {
     public boolean upPressed, downPressed, leftPressed, rightPressed;
     public boolean escapePressed;
     public boolean pPressed;
+    public boolean spacePressed;
 
     @Override
     public void keyTyped(KeyEvent e) {
