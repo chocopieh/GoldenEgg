@@ -6,7 +6,6 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.util.ArrayList;
-import java.util.Iterator;
 import mygame.tile.TileManager;
 import mygame.entity.Player;
 import mygame.entity.Chicken;
@@ -19,6 +18,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     public Sound menuMusic = new Sound();
     public boolean isMenuMusicPlaying = false;
+    private boolean hasSavedProgress = false;
 
     // ===== GAME STATE =====
     public final int STATE_PLAY = 0;
@@ -84,7 +84,38 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
+    public boolean hasSavedProgress() {
+        return hasSavedProgress;
+    }
+
+    public void saveProgressAndBackToMenu() {
+        hasSavedProgress = true;
+        gameState = STATE_PAUSE;
+        keyH.escapePressed = false;
+        mouseH.resetClick();
+
+        if (player != null) {
+            player.stopFootstepSound();
+        }
+
+        main.showMenu();
+    }
+
+    public void resumeSavedGame() {
+        hasSavedProgress = false;
+        keyH.escapePressed = false;
+        mouseH.resetClick();
+        gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
+        requestFocusInWindow();
+    }
+
+    public void clearSavedProgress() {
+        hasSavedProgress = false;
+    }
+
     public void setupGame() {
+        gameState = STATE_PLAY;
+        hasSavedProgress = false;
         tileM.resetMapObjects();
 
         if (player != null) {
@@ -123,18 +154,19 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void playVictoryMusic() {
-        System.out.println("Gọi playVictoryMusic");
+        System.out.println("Goi playVictoryMusic");
         victoryMusic.stop();
         victoryMusic.setFile("/res/audio/victory.wav");
 
         if (victoryMusic.isLoaded()) {
             victoryMusic.play();
         } else {
-            System.out.println("Không load được victory.wav");
+            System.out.println("Khong load duoc victory.wav");
         }
     }
 
     public void showLevel1WinScreen() {
+        clearSavedProgress();
         gameState = STATE_LEVEL_COMPLETE;
         mouseH.resetClick();
         if (player != null) {
@@ -150,10 +182,9 @@ public class GamePanel extends JPanel implements Runnable {
             gameOverMusic.play();
         }
     }
-    
+
     private void spawnInitialChickens() {
         chickens.clear();
-
         chickens.add(new Chicken(this, 192, 128));
         chickens.add(new Chicken(this, 64, 304));
         chickens.add(new Chicken(this, 896, 192));
@@ -166,7 +197,9 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void startGameThread() {
         stopMenuMusic();
-
+        if (gameThread != null) {
+            gameThread = null;
+        }
         if (gameThread == null || !gameThread.isAlive()) {
             gameThread = new Thread(this);
             gameThread.start();
@@ -205,8 +238,7 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-        public void update() {
-        // LEVEL 1 COMPLETE
+    public void update() {
         if (gameState == STATE_LEVEL_COMPLETE) {
             if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                 mouseH.clicked = false;
@@ -215,10 +247,10 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
-        // GAME WIN
         if (gameState == STATE_GAME_WIN) {
             if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                 mouseH.resetClick();
+                clearSavedProgress();
                 stopAllSounds();
                 stopGameThread();
                 main.showMenu();
@@ -226,12 +258,10 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
-        // GAME OVER
         if (gameState == STATE_GAME_OVER) {
             return;
         }
 
-        // ESC = Pause / Resume
         if (keyH.escapePressed) {
             keyH.escapePressed = false;
 
@@ -244,6 +274,7 @@ public class GamePanel extends JPanel implements Runnable {
                 return;
 
             } else if (gameState == STATE_PAUSE) {
+                hasSavedProgress = false;
                 gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
                 mouseH.resetClick();
                 return;
@@ -254,28 +285,26 @@ public class GamePanel extends JPanel implements Runnable {
             if (mouseH.clicked) {
                 if (ui.continueBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                     mouseH.resetClick();
+                    hasSavedProgress = false;
                     gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
                     return;
                 }
 
                 if (ui.menuBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                    mouseH.resetClick();
-                    stopAllSounds();
-                    stopGameThread();
-                    main.showMenu();
+                    saveProgressAndBackToMenu();
                     return;
                 }
             }
             return;
         }
 
-        // GAME COMPLETED
         if (gameState == STATE_GAME_COMPLETED) {
             if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                 mouseH.resetClick();
                 restartGame();
             } else if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                 mouseH.resetClick();
+                clearSavedProgress();
                 stopAllSounds();
                 stopGameThread();
                 main.showMenu();
@@ -287,7 +316,6 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
-        // PLAYER UPDATE
         if (player != null) {
             player.update();
             tileM.checkItemCollisions(player.getBounds());
@@ -303,31 +331,31 @@ public class GamePanel extends JPanel implements Runnable {
             }
         }
 
-        // CHICKEN UPDATE
-        for (int i = chickens.size() - 1; i >= 0; i--) {
+        for (int i = 0; i < chickens.size(); i++) {
             Chicken chicken = chickens.get(i);
 
-            chicken.update();
+            if (chicken.alive) {
+                chicken.update();
 
-            if (chicken.life <= 0 || !chicken.alive) {
-                chickens.remove(i);
-                continue;
-            }
+                if (player != null && player.getBounds().intersects(chicken.getBounds())) {
+                    if (!player.invincible) {
+                        player.takeDamage(10);
+                    }
+                }
+            } else {
+                chicken.respawnCounter++;
 
-            if (player != null && player.getBounds().intersects(chicken.getBounds())) {
-                if (!player.invincible) {
-                    player.takeDamage(10);
+                if (chicken.respawnCounter >= 300) {
+                    chicken.respawn();
                 }
             }
         }
 
-        // GAME OVER
         if (player != null && player.health <= 0) {
             player.triggerGameOver();
             return;
         }
 
-        // MAP UPDATE
         tileM.update();
     }
 
@@ -354,6 +382,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void startNewGame() {
+        clearSavedProgress();
         gameState = STATE_PLAY;
         currentLevel = 1;
         tileM.loadLevelMap(1);
@@ -364,11 +393,13 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void completeLevel() {
+        clearSavedProgress();
         gameState = STATE_LEVEL_COMPLETE;
         playVictoryMusic();
     }
 
     public void startLevel2() {
+        clearSavedProgress();
         currentLevel = 2;
         gameState = STATE_LEVEL2_PLAY;
 
@@ -400,6 +431,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void showGameWinScreen() {
+        clearSavedProgress();
         gameState = STATE_GAME_WIN;
         if (player != null) {
             player.stopFootstepSound();
@@ -408,6 +440,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void showGameCompletedScreen() {
+        clearSavedProgress();
         gameState = STATE_GAME_COMPLETED;
         mouseH.clicked = false;
         if (player != null) {
@@ -418,6 +451,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void restartGame() {
+        clearSavedProgress();
         gameState = STATE_PLAY;
         currentLevel = 1;
         tileM.loadLevelMap(1);
