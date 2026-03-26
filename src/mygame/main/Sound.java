@@ -51,9 +51,6 @@ public class Sound {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        clip.stop();
-        clip.setFramePosition(0);
-        clip.start();
     }
 
     public void loop() {
@@ -62,6 +59,7 @@ public class Sound {
                 clip.stop();
                 clip.setFramePosition(0);
                 clip.loop(Clip.LOOP_CONTINUOUSLY);
+                System.out.println("Đang lặp âm thanh...");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -70,7 +68,7 @@ public class Sound {
 
     public void stop() {
         try {
-            if (clip != null) {
+            if (clip != null && clip.isRunning()) {
                 clip.stop();
             }
         } catch (Exception e) {
@@ -90,5 +88,9 @@ public class Sound {
 
     public boolean isLoaded() {
         return clip != null;
+    }
+
+    public boolean isRunning() {
+        return clip != null && clip.isRunning();
     }
 }

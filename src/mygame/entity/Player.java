@@ -1,6 +1,7 @@
 package mygame.entity;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -12,44 +13,29 @@ import javax.swing.SwingUtilities;
 import mygame.main.GameOverDialog;
 import mygame.main.GamePanel;
 import mygame.main.KeyHandler;
-import mygame.main.VictoryDialog;
-import mygame.main.Sound;
-import javax.swing.Timer;
 
 public class Player extends Entity {
 
-    GamePanel gp;
     KeyHandler keyH;
 
     public boolean hasEgg = false;
-    public boolean hasWeapon = false; // TRẠNG THÁI MỚI
+    public boolean hasWeapon = false;
     public String name = "Player";
 
-    public int maxHealth = 100;
     public int health = 100;
+    public int maxHealth = 100;
 
-    public boolean invincible = false;
-    public int invincibleCounter = 0;
-
-    private final int solidAreaDefaultX;
-    private final int solidAreaDefaultY;
-
-    public int spriteCounter = 0;
-    public int spriteNum = 1;
-
-    private boolean victoryShown = false;
+    private int attackCounter = 0;
     private boolean gameOverShown = false;
-    Sound footstep = new Sound();
-    boolean isWalkingSoundPlaying = false;
-
-    // Ảnh khi cầm trứng
-    public BufferedImage up1_egg, up2_egg, down1_egg, down2_egg, left1_egg, left2_egg, right1_egg, right2_egg;
     
-    // Ảnh khi cầm vũ khí (Weapons)
+    private mygame.main.Sound footstepSound = new mygame.main.Sound();
+    private boolean isFootstepPlaying = false;
+
+    public BufferedImage up1_egg, up2_egg, down1_egg, down2_egg, left1_egg, left2_egg, right1_egg, right2_egg;
     public BufferedImage up1_weapon, up2_weapon, down1_weapon, down2_weapon, left1_weapon, left2_weapon, right1_weapon, right2_weapon;
 
     public Player(GamePanel gp, KeyHandler keyH) {
-        this.gp = gp;
+        super(gp);
         this.keyH = keyH;
 
         solidArea = new Rectangle();
@@ -63,114 +49,125 @@ public class Player extends Entity {
 
         setDefaultValues();
         getPlayerImage();
-
-       // 🔥 THÊM DÒNG NÀY
-       footstep.setFile("/res/audio/footstep.wav");
-    }
-    public void handleFootstepSound(boolean isMoving) {
-
-        if (isMoving) {
-            if (!isWalkingSoundPlaying) {
-                footstep.loop();
-                isWalkingSoundPlaying = true;
-            }
-        } else {
-            if (isWalkingSoundPlaying) {
-                footstep.stop();
-                footstep.reset();
-                isWalkingSoundPlaying = false;
-            }
-        }
     }
 
     public void setDefaultValues() {
         x = gp.tileM.playerStartX;
         y = gp.tileM.playerStartY;
-        speed = 4;
+        speed = 3;
         direction = "down";
 
         hasEgg = false;
-        hasWeapon = false; // Reset khi bắt đầu lại
-
-        maxHealth = 100;
+        hasWeapon = false;
+        attacking = false;
         health = 100;
-
         invincible = false;
         invincibleCounter = 0;
-        spriteCounter = 0;
-        spriteNum = 1;
-
-        victoryShown = false;
         gameOverShown = false;
     }
 
     public void getPlayerImage() {
+        footstepSound.setFile("/res/audio/footstep.wav");
         try {
-            // 1. Player bình thường (player01)
-            up1 = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player01_up1.png"));
-            up2 = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player01_up2.png"));
-            down1 = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player01_down1.png"));
-            down2 = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player01_down2.png"));
-            left1 = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player01_left1.png"));
-            left2 = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player01_left2.png"));
-            right1 = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player01_right1.png"));
-            right2 = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player01_right2.png"));
+            up1 = setup("/res/tiles/player01_up1.png");
+            up2 = setup("/res/tiles/player01_up2.png");
+            down1 = setup("/res/tiles/player01_down1.png");
+            down2 = setup("/res/tiles/player01_down2.png");
+            left1 = setup("/res/tiles/player01_left1.png");
+            left2 = setup("/res/tiles/player01_left2.png");
+            right1 = setup("/res/tiles/player01_right1.png");
+            right2 = setup("/res/tiles/player01_right2.png");
 
-            // 2. Player cầm trứng (player02)
-            up1_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player02_up1.png"));
-            up2_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player02_up2.png"));
-            down1_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player02_down1.png"));
-            down2_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player02_down2.png"));
-            left1_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player02_left1.png"));
-            left2_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player02_left2.png"));
-            right1_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player02_right1.png"));
-            right2_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player02_right2.png"));
+            up1_egg = setup("/res/tiles/player02_up1.png");
+            up2_egg = setup("/res/tiles/player02_up2.png");
+            down1_egg = setup("/res/tiles/player02_down1.png");
+            down2_egg = setup("/res/tiles/player02_down2.png");
+            left1_egg = setup("/res/tiles/player02_left1.png");
+            left2_egg = setup("/res/tiles/player02_left2.png");
+            right1_egg = setup("/res/tiles/player02_right1.png");
+            right2_egg = setup("/res/tiles/player02_right2.png");
 
-            // 3. Player cầm vũ khí (Hãy đặt tên ảnh là player03_... trong thư mục res/tiles)
-            up1_weapon = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player03_up1.png"));
-            up2_weapon = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player03_up2.png"));
-            down1_weapon = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player03_down1.png"));
-            down2_weapon = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player03_down2.png"));
-            left1_weapon = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player03_left1.png"));
-            left2_weapon = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player03_left2.png"));
-            right1_weapon = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player03_right1.png"));
-            right2_weapon = ImageIO.read(getClass().getResourceAsStream("/res/tiles/player03_right2.png"));
+            up1_weapon = setup("/res/tiles/player03_up1.png");
+            up2_weapon = setup("/res/tiles/player03_up2.png");
+            down1_weapon = setup("/res/tiles/player03_down1.png");
+            down2_weapon = setup("/res/tiles/player03_down2.png");
+            left1_weapon = setup("/res/tiles/player03_left1.png");
+            left2_weapon = setup("/res/tiles/player03_left2.png");
+            right1_weapon = setup("/res/tiles/player03_right1.png");
+            right2_weapon = setup("/res/tiles/player03_right2.png");
 
-        } catch (IOException | NullPointerException e) {
-            System.out.println("Lỗi tải bộ ảnh Player! Hãy kiểm tra đường dẫn.");
+            attackUp = setup("/res/tiles/player04_up.png");
+            attackDown = setup("/res/tiles/player04_down.png");
+            attackLeft = setup("/res/tiles/player04_left.png");
+            attackRight = setup("/res/tiles/player04_right.png");
+
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    public BufferedImage setup(String imageName) throws IOException {
+        return ImageIO.read(getClass().getResourceAsStream(imageName));
+    }
+    private void playFootstepSound() {
+        if (!isFootstepPlaying && footstepSound != null && footstepSound.isLoaded()) {
+            footstepSound.loop();
+            isFootstepPlaying = true;
+        }
+    }
+
+    @Override
+    public void stopFootstepSound() {
+        if (footstepSound != null) {
+            footstepSound.stop();
+        }
+        isFootstepPlaying = false;
+    }
+
+    @Override
     public void update() {
-        boolean isMoving = keyH.upPressed || keyH.downPressed || keyH.leftPressed || keyH.rightPressed;
-
-        if (isMoving) {
-            if (keyH.upPressed) direction = "up";
-            else if (keyH.downPressed) direction = "down";
-            else if (keyH.leftPressed) direction = "left";
-            else if (keyH.rightPressed) direction = "right";
-
-            collisionOn = false;
-            gp.cChecker.checkTile(this);
-            checkObjectInteraction();
-
-            if (!collisionOn) {
-                switch (direction) {
-                    case "up": y -= speed; break;
-                    case "down": y += speed; break;
-                    case "left": x -= speed; break;
-                    case "right": x += speed; break;
-                }
-            }
-
-            spriteCounter++;
-            if (spriteCounter > 12) {
-                spriteNum = (spriteNum == 1) ? 2 : 1;
-                spriteCounter = 0;
-            }
+        if (attacking) {
+            attacking();
         } else {
-            spriteNum = 1;
+          
+        if (keyH.spacePressed && hasWeapon) {
+            stopFootstepSound();
+            attacking = true;
+            attackCounter = 0;
+
+        } else if (keyH.upPressed || keyH.downPressed || keyH.leftPressed || keyH.rightPressed) {
+
+                if (keyH.upPressed) direction = "up";
+                else if (keyH.downPressed) direction = "down";
+                else if (keyH.leftPressed) direction = "left";
+                else if (keyH.rightPressed) direction = "right";
+
+                collisionOn = false;
+                gp.cChecker.checkTile(this);
+                checkObjectInteraction();
+
+                if (!collisionOn) {
+                    switch (direction) {
+                        case "up": y -= speed; break;
+                        case "down": y += speed; break;
+                        case "left": x -= speed; break;
+                        case "right": x += speed; break;
+                    }
+                    playFootstepSound();
+                } else {
+                    stopFootstepSound();
+                }
+
+                spriteCounter++;
+                if (spriteCounter > 12) {
+                    spriteNum = (spriteNum == 1) ? 2 : 1;
+                    spriteCounter = 0;
+                }
+
+            } else {
+                spriteNum = 1;
+                stopFootstepSound();
+            }
         }
 
         if (invincible) {
@@ -180,73 +177,103 @@ public class Player extends Entity {
                 invincibleCounter = 0;
             }
         }
-        handleFootstepSound(isMoving);
+    }
+
+    public void attacking() {
+        attackCounter++;
+
+        if (attackCounter <= 15) {
+            int currentWorldX = x;
+            int currentWorldY = y;
+            int solidAreaWidth = solidArea.width;
+            int solidAreaHeight = solidArea.height;
+
+            switch(direction) {
+                case "up": y -= gp.tileSize; break;
+                case "down": y += gp.tileSize; break;
+                case "left": x -= gp.tileSize; break;
+                case "right": x += gp.tileSize; break;
+            }
+
+            solidArea.width = gp.tileSize;
+            solidArea.height = gp.tileSize;
+
+            checkAttackMonster();
+
+            x = currentWorldX;
+            y = currentWorldY;
+            solidArea.width = solidAreaWidth;
+            solidArea.height = solidAreaHeight;
+        }
+
+        if (attackCounter > 10) {
+            attacking = false;
+            attackCounter = 0;
+        }
+    }
+
+    public void checkAttackMonster() {
+        for (Chicken chicken : gp.chickens) {
+            if (chicken != null && chicken.alive) {
+                if (getBounds().intersects(chicken.getBounds())) {
+                    chicken.takeDamage(20);
+                }
+            }
+        }
     }
 
     public void checkObjectInteraction() {
-        // --- TƯƠNG TÁC VỚI VŨ KHÍ (WEAPONS) ---
-        if (!hasWeapon && gp.tileM.weaponRect != null) {
-            String object = gp.cChecker.checkEntity(this, gp.tileM.weaponRect, "Weapon");
-            if (object.equals("Weapon")) {
-                hasWeapon = true;
-                gp.tileM.weaponRect = null; // Xóa vũ khí trên Map
-                System.out.println("Bạn đã nhặt được vũ khí!");
-            }
+        Rectangle pRect = getBounds();
+
+        if (!hasEgg && gp.tileM.eggRect != null && pRect.intersects(gp.tileM.eggRect)) {
+            hasEgg = true;
+            gp.tileM.eggCollected = true;
+            gp.tileM.eggRect = null;
         }
 
-        // --- TƯƠNG TÁC VỚI TRỨNG ---
-        if (!hasEgg && gp.tileM.eggRect != null) {
-            String object = gp.cChecker.checkEntity(this, gp.tileM.eggRect, "Egg");
-            if (object.equals("Egg")) {
-                hasEgg = true;
-                gp.tileM.eggCollected = true;
-                gp.tileM.eggRect = null;
-                System.out.println("Bạn đã nhặt được trứng!");
-            }
-        }
-
-        // --- TƯƠNG TÁC VỚI NHÀ ---
-        if (gp.tileM.houseRect != null) {
-            String reachHome = gp.cChecker.checkEntity(this, gp.tileM.houseRect, "House");
-            if (reachHome.equals("House")) {
-            if (hasEgg && !victoryShown) {
-                victoryShown = true;
-                gp.showGameCompletedScreen(); // 🔥 CHỈ GỌI CÁI NÀY
-            } else if (!hasEgg) {
-                System.out.println("Tìm trứng đã!");
-            }
+        if (hasEgg && !hasWeapon && gp.tileM.weaponRect != null && pRect.intersects(gp.tileM.weaponRect)) {
+            hasWeapon = true;
+            gp.tileM.weaponRect = null;
         }
     }
-}
 
+    @Override
     public void draw(Graphics2D g2) {
         BufferedImage image = null;
 
-        // ƯU TIÊN HIỂN THỊ: Cầm vũ khí > Cầm trứng > Bình thường
-        switch (direction) {
-            case "up":
-                if (hasWeapon) image = (spriteNum == 1) ? up1_weapon : up2_weapon;
-                else if (hasEgg) image = (spriteNum == 1) ? up1_egg : up2_egg;
-                else image = (spriteNum == 1) ? up1 : up2;
-                break;
-            case "down":
-                if (hasWeapon) image = (spriteNum == 1) ? down1_weapon : down2_weapon;
-                else if (hasEgg) image = (spriteNum == 1) ? down1_egg : down2_egg;
-                else image = (spriteNum == 1) ? down1 : down2;
-                break;
-            case "left":
-                if (hasWeapon) image = (spriteNum == 1) ? left1_weapon : left2_weapon;
-                else if (hasEgg) image = (spriteNum == 1) ? left1_egg : left2_egg;
-                else image = (spriteNum == 1) ? left1 : left2;
-                break;
-            case "right":
-                if (hasWeapon) image = (spriteNum == 1) ? right1_weapon : right2_weapon;
-                else if (hasEgg) image = (spriteNum == 1) ? right1_egg : right2_egg;
-                else image = (spriteNum == 1) ? right1 : right2;
-                break;
+        if (attacking) {
+            stopFootstepSound();
+            switch (direction) {
+                case "up": image = attackUp; break;
+                case "down": image = attackDown; break;
+                case "left": image = attackLeft; break;
+                case "right": image = attackRight; break;
+            }
+        } else {
+            switch (direction) {
+                case "up":
+                    if (hasWeapon) image = (spriteNum == 1) ? up1_weapon : up2_weapon;
+                    else if (hasEgg) image = (spriteNum == 1) ? up1_egg : up2_egg;
+                    else image = (spriteNum == 1) ? up1 : up2;
+                    break;
+                case "down":
+                    if (hasWeapon) image = (spriteNum == 1) ? down1_weapon : down2_weapon;
+                    else if (hasEgg) image = (spriteNum == 1) ? down1_egg : down2_egg;
+                    else image = (spriteNum == 1) ? down1 : down2;
+                    break;
+                case "left":
+                    if (hasWeapon) image = (spriteNum == 1) ? left1_weapon : left2_weapon;
+                    else if (hasEgg) image = (spriteNum == 1) ? left1_egg : left2_egg;
+                    else image = (spriteNum == 1) ? left1 : left2;
+                    break;
+                case "right":
+                    if (hasWeapon) image = (spriteNum == 1) ? right1_weapon : right2_weapon;
+                    else if (hasEgg) image = (spriteNum == 1) ? right1_egg : right2_egg;
+                    else image = (spriteNum == 1) ? right1 : right2;
+                    break;
+            }
         }
 
-        // Hiệu ứng nhấp nháy khi bất tử
         if (!(invincible && invincibleCounter % 6 < 3)) {
             if (image != null) {
                 g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
@@ -257,74 +284,42 @@ public class Player extends Entity {
     }
 
     private void drawPlayerUI(Graphics2D g2) {
-        g2.setFont(g2.getFont().deriveFont(18f));
+        g2.setFont(new Font("Arial", Font.BOLD, 18));
         FontMetrics fm = g2.getFontMetrics();
-
         int textX = x + (gp.tileSize - fm.stringWidth(name)) / 2;
-        int textY = y - 8;
+        int textY = y - 10;
 
         g2.setColor(new Color(0, 0, 0, 150));
         g2.drawString(name, textX + 2, textY + 2);
+
         g2.setColor(Color.WHITE);
         g2.drawString(name, textX, textY);
-
-        // Thông báo trạng thái nhặt được đồ
-        g2.setFont(g2.getFont().deriveFont(12f));
-        if (hasWeapon) {
-            g2.setColor(Color.CYAN);
-            g2.drawString("ARMED", x, y - 35);
-        }
-        if (hasEgg) {
-            g2.setColor(Color.YELLOW);
-            g2.drawString("GOT EGG!", x, y - 22);
-        }
     }
 
-    public Rectangle getBounds() {
-        return new Rectangle(x + solidArea.x, y + solidArea.y, solidArea.width, solidArea.height);
-    }
-
+    @Override
     public void takeDamage(int damage) {
         if (!invincible && health > 0) {
             health -= damage;
             if (health < 0) health = 0;
             invincible = true;
             invincibleCounter = 0;
-            if (health <= 0) triggerGameOver();
-        }
-    }
 
-    public void triggerGameOver() {
-        if (!gameOverShown) {
-            gameOverShown = true;
-
-            // Tắt tiếng bước chân trước
-            if (isWalkingSoundPlaying) {
-                footstep.stop();
-                footstep.reset();
-                isWalkingSoundPlaying = false;
+            if (health <= 0) {
+                triggerGameOver();
             }
+        }
+    }
 
-            gp.stopGameThread();
-            gp.playGameOverMusic();
+   public void triggerGameOver() {
+        if (gameOverShown) return;
+        gameOverShown = true;
 
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(gp);
-            GameOverDialog gameOverDialog = new GameOverDialog(parentFrame, name, gp.main);
-            gameOverDialog.showDialog();
-        }
+        stopFootstepSound();
+        gp.stopAllSounds();
+        gp.playGameOverMusic();
+        gp.gameState = gp.STATE_GAME_OVER;
+
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(gp);
+        new GameOverDialog(parentFrame, name, gp.main).showDialog();
     }
-     public void triggerGameWin() {
-        if (isWalkingSoundPlaying) {
-            footstep.stop();
-            footstep.reset();
-            isWalkingSoundPlaying = false;
-        }
-       gp.showGameCompletedScreen();
-    }
-    public void stopFootstepSound() {
-        if (isWalkingSoundPlaying) {
-            footstep.stop();
-            isWalkingSoundPlaying = false;
-        }
-    }
-}   
+}

@@ -17,6 +17,9 @@ public class UI {
     // Nút qua màn
     public Rectangle nextLevelBtn = new Rectangle(340, 380, 340, 80);
     public Rectangle backBtn = new Rectangle(340, 490, 340, 80);
+    
+    public Rectangle continueBtn;
+    public Rectangle menuBtn;
 
     public UI(GamePanel gp) {
         this.gp = gp;
@@ -25,18 +28,22 @@ public class UI {
         titleFont = loadFont(16f);
         smallFont = loadFont(12f);
         bigFont = loadFont(28f);
+        
+        continueBtn = new Rectangle(340, 360, 340, 80);
+        menuBtn = new Rectangle(340, 470, 340, 80);
     }
 
     public void draw(Graphics2D g2) {
         drawPlayerHUD(g2);
 
-        // Kiểm tra và vẽ các màn hình chiến thắng
         if (gp.gameState == gp.STATE_LEVEL_COMPLETE) {
-            drawLevel1WinScreen(g2);  // Màn hình hoàn thành level 1
+            drawLevel1WinScreen(g2);
         } else if (gp.gameState == gp.STATE_GAME_WIN) {
-            drawGameWinScreen(g2);  // Màn hình chiến thắng
+            drawGameWinScreen(g2);
         } else if (gp.gameState == gp.STATE_GAME_COMPLETED) {
-            drawGameCompletedScreen(g2);  // Màn hình hoàn thành game
+            drawGameCompletedScreen(g2);
+        } else if (gp.gameState == gp.STATE_PAUSE) {
+            drawPauseScreen(g2);
         }
     }
 
@@ -237,7 +244,7 @@ public class UI {
         // Tiêu đề
         g2.setFont(loadFont(34f));
         g2.setColor(new Color(255, 230, 90));
-        String title = "BAN ĐA HOAN THANH GAME!";
+        String title = "BAN DA HOAN THANH GAME!";
         int titleX = gp.screenWidth / 2 - g2.getFontMetrics().stringWidth(title) / 2;
         g2.drawString(title, titleX, 220);
 
@@ -271,5 +278,44 @@ public class UI {
         int backToMenuX = backBtn.x + backBtn.width / 2 - g2.getFontMetrics().stringWidth(backToMenuText) / 2;
         int backToMenuY = backBtn.y + 48;
         g2.drawString(backToMenuText, backToMenuX, backToMenuY);
+    }
+   private void drawPauseScreen(Graphics2D g2) {
+        g2.setColor(new Color(0, 0, 0, 180));
+        g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
+
+        g2.setFont(loadFont(34f));
+        g2.setColor(new Color(255, 230, 90));
+        String title = "PAUSED";
+        int titleX = gp.screenWidth / 2 - g2.getFontMetrics().stringWidth(title) / 2;
+        g2.drawString(title, titleX, 220);
+
+        g2.setFont(loadFont(18f));
+        g2.setColor(Color.WHITE);
+        String sub = "Chon tiep tuc hoac quay ve menu";
+        int subX = gp.screenWidth / 2 - g2.getFontMetrics().stringWidth(sub) / 2;
+        g2.drawString(sub, subX, 280);
+
+        boolean continueHover = continueBtn.contains(gp.mouseH.mouseX, gp.mouseH.mouseY);
+        g2.setColor(continueHover ? new Color(255, 210, 90) : new Color(255, 180, 50));
+        g2.fillRoundRect(continueBtn.x, continueBtn.y, continueBtn.width, continueBtn.height, 25, 25);
+        g2.setColor(Color.BLACK);
+        g2.drawRoundRect(continueBtn.x, continueBtn.y, continueBtn.width, continueBtn.height, 25, 25);
+
+        g2.setFont(loadFont(22f));
+        String continueText = "CONTINUE";
+        int continueX = continueBtn.x + continueBtn.width / 2 - g2.getFontMetrics().stringWidth(continueText) / 2;
+        int continueY = continueBtn.y + 48;
+        g2.drawString(continueText, continueX, continueY);
+
+        boolean menuHover = menuBtn.contains(gp.mouseH.mouseX, gp.mouseH.mouseY);
+        g2.setColor(menuHover ? new Color(255, 210, 90) : new Color(255, 180, 50));
+        g2.fillRoundRect(menuBtn.x, menuBtn.y, menuBtn.width, menuBtn.height, 25, 25);
+        g2.setColor(Color.BLACK);
+        g2.drawRoundRect(menuBtn.x, menuBtn.y, menuBtn.width, menuBtn.height, 25, 25);
+
+        String menuText = "MAIN MENU";
+        int menuX = menuBtn.x + menuBtn.width / 2 - g2.getFontMetrics().stringWidth(menuText) / 2;
+        int menuY = menuBtn.y + 48;
+        g2.drawString(menuText, menuX, menuY);
     }
 }

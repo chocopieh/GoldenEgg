@@ -36,6 +36,9 @@ public class KeyHandler implements KeyListener {
         if (code == KeyEvent.VK_P) {
             pPressed = true;
         }
+        if (code == KeyEvent.VK_SPACE) {
+            spacePressed = true;
+        }
     }
 
     @Override
@@ -53,6 +56,12 @@ public class KeyHandler implements KeyListener {
         }
         if (code == KeyEvent.VK_D || code == KeyEvent.VK_RIGHT) {
             rightPressed = false;
+        }
+        if (code == KeyEvent.VK_SPACE) {
+            spacePressed = false;
+        }
+        if (code == KeyEvent.VK_P) {
+            pPressed = false;
         }
     }
 }

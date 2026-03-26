@@ -7,98 +7,103 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 import mygame.main.GamePanel;
+import java.awt.BasicStroke;
+import java.awt.AlphaComposite;
+import java.awt.RenderingHints;
 
 public class Chicken extends Entity {
-    
+
     GamePanel gp;
-    
-    // --- Hệ thống máu (HP) ---
-    public int maxLife = 4;
-    public int life = maxLife;
-    public boolean isAngry = false;
+// --- Hệ thống HP & Trạng thái ---
     private boolean hpBarOn = false;
     private int hpBarCounter = 0;
+    //bộ đếm tgian hồi sinh
+    public int defaultX, defaultY;
+    public int respawnCounter = 0;
+    public int shrinkCounter = 0;// Bộ đếm hiệu ứng thu nhỏ vòng tròn sau khi hồi sinh
 
-    public int spriteCounter = 0;
-    public int spriteNum = 1;
-
-    // --- Chống rung và AI né vật cản ---
+    // --- AI DI CHUYỂN & NÉ VẬT CẢN ---
     private int stuckCooldown = 0;
     private String lastBlockedDirection = "";
-    private String avoidDirection = null;
     private int avoidTimer = 0;
-
-    // Ảnh
+    private String avoidDirection = null;
+    // Ảnh animation
     public BufferedImage up1_egg, up2_egg, down1_egg, down2_egg, left1_egg, left2_egg, right1_egg, right2_egg;
 
     public Chicken(GamePanel gp, int startX, int startY) {
+        super(gp);
         this.gp = gp;
         this.x = startX;
         this.y = startY;
-        this.speed = 2;
+        this.defaultX = startX;
+        this.defaultY = startY;
+        this.speed = 1;
         this.direction = "down";
 
-        // Hitbox dùng để va chạm với tường (Tile)
-        solidArea = new Rectangle(20, 20, 24, 24); 
+        this.maxLife = 100;
+        this.life = maxLife;
+        this.alive = true;
+
+        solidArea = new Rectangle(18, 18, 28, 28);
+        solidAreaDefaultX = solidArea.x;
+        solidAreaDefaultY = solidArea.y;
 
         getChickenImage();
     }
 
-    // --- HÀM SỬA LỖI TRONG GAMEPANEL ---
-    // Hàm này trả về vùng va chạm để Player có thể check intersects
-    public Rectangle getBounds() {
-        return new Rectangle(x + solidArea.x, y + solidArea.y, solidArea.width, solidArea.height);
-    }
-
     public void getChickenImage() {
         try {
-            // Ảnh trạng thái bình thường
-            up1 = ImageIO.read(getClass().getResourceAsStream("/res/tiles/chicken_ngu.png"));
-            down1 = up1; left1 = up1; right1 = up1;
+            // Ảnh trạng thái bình thường (Ngủ)
+            up1 = setup("/res/tiles/chicken_ngu.png");
+            down1 = up1;
+            left1 = up1;
+            right1 = up1;
 
-            // Ảnh trạng thái đuổi theo người chơi
-            up1_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/chicken_up1.png"));
-            up2_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/chicken_up2.png"));
-            down1_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/chicken_down1.png"));
-            down2_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/chicken_down2.png"));
-            left1_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/chicken_left1.png"));
-            left2_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/chicken_left2.png"));
-            right1_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/chicken_right1.png"));
-            right2_egg = ImageIO.read(getClass().getResourceAsStream("/res/tiles/chicken_right2.png"));
-
-        } catch (IOException | NullPointerException e) {
+             // Ảnh trạng thái đuổi theo (Angry)
+            up1_egg = setup("/res/tiles/chicken_up1.png");
+            up2_egg = setup("/res/tiles/chicken_up2.png");
+            down1_egg = setup("/res/tiles/chicken_down1.png");
+            down2_egg = setup("/res/tiles/chicken_down2.png");
+            left1_egg = setup("/res/tiles/chicken_left1.png");
+            left2_egg = setup("/res/tiles/chicken_left2.png");
+            right1_egg = setup("/res/tiles/chicken_right1.png");
+            right2_egg = setup("/res/tiles/chicken_right2.png");
+        } catch (IOException e) {
             System.out.println("Lỗi tải ảnh gà!");
         }
     }
 
+    public BufferedImage setup(String path) throws IOException {
+        return ImageIO.read(getClass().getResourceAsStream(path));
+    }
+
+    @Override
     public void update() {
-        if (stuckCooldown > 0) stuckCooldown--;
-
-        // Tính khoảng cách đến Player
-        int chickenCenterX = this.x + gp.tileSize / 2;
-        int chickenCenterY = this.y + gp.tileSize / 2;
-        int playerCenterX = gp.player.x + gp.tileSize / 2;
-        int playerCenterY = gp.player.y + gp.tileSize / 2;
-
-        int diffX = playerCenterX - chickenCenterX;
-        int diffY = playerCenterY - chickenCenterY;
-        double distance = Math.sqrt(diffX * diffX + diffY * diffY);
-
-        // Kiểm tra điều kiện đuổi theo
-        if (gp.player.hasEgg && distance < 220) {
-            isAngry = true;
-            hpBarOn = true;
-            hpBarCounter = 0; 
-        } else {
-            isAngry = false;
-            spriteNum = 1;
-            spriteCounter = 0;
-            return;
+        // 1. Xử lý thời gian bất tử và nhấp nháy
+        if (invincible) {
+            invincibleCounter++;
+            if (invincibleCounter > 40) {
+                invincible = false;
+                invincibleCounter = 0;
+            }
         }
 
-        moveTowardPlayer(diffX, diffY);
+        if (stuckCooldown > 0) stuckCooldown--;
+        // 2. Tính khoảng cách đến Player
+        int diffX = (gp.player.x + gp.tileSize / 2) - (this.x + gp.tileSize / 2);
+        int diffY = (gp.player.y + gp.tileSize / 2) - (this.y + gp.tileSize / 2);
+        double distance = Math.sqrt(diffX * diffX + diffY * diffY);
 
-        // Animation
+          // 3. AI đuổi theo khi Player có trứng
+        if (gp.player.hasEgg && distance < 350) {
+            attacking = true;
+            moveTowardPlayer(diffX, diffY);
+        } else {
+            attacking = false;
+            spriteNum = 1;
+            return;
+        }
+        // 4. Animation chân chạy
         spriteCounter++;
         if (spriteCounter > 10) {
             spriteNum = (spriteNum == 1) ? 2 : 1;
@@ -113,108 +118,180 @@ public class Chicken extends Entity {
                 return;
             } else {
                 avoidTimer = 0;
-                avoidDirection = null;
             }
         }
 
-        String primaryDirection, secondaryDirection;
+        String primaryDir, secondaryDir;
         if (Math.abs(diffX) > Math.abs(diffY)) {
-            primaryDirection = (diffX > 0) ? "right" : "left";
-            secondaryDirection = (diffY > 0) ? "down" : "up";
+            primaryDir = (diffX > 0) ? "right" : "left";
+            secondaryDir = (diffY > 0) ? "down" : "up";
         } else {
-            primaryDirection = (diffY > 0) ? "down" : "up";
-            secondaryDirection = (diffX > 0) ? "right" : "left";
+            primaryDir = (diffY > 0) ? "down" : "up";
+            secondaryDir = (diffX > 0) ? "right" : "left";
         }
-
-        if (!tryMove(primaryDirection)) {
-            if (tryMove(secondaryDirection)) {
-                avoidDirection = secondaryDirection;
-                avoidTimer = 10;
-            } else {
-                tryAlternativeMove(primaryDirection, diffX, diffY);
+// Thử hướng chính, nếu kẹt (tường hoặc gà khác) thì thử hướng phụ
+        if (!tryMove(primaryDir)) {
+            if (tryMove(secondaryDir)) {
+                avoidDirection = secondaryDir;
+                avoidTimer = 15;
             }
-        }
-    }
-
-    private void tryAlternativeMove(String primaryDirection, int diffX, int diffY) {
-        String alt1, alt2;
-        if (primaryDirection.equals("left") || primaryDirection.equals("right")) {
-            alt1 = (diffY < 0) ? "up" : "down";
-            alt2 = (diffY < 0) ? "down" : "up";
-        } else {
-            alt1 = (diffX < 0) ? "left" : "right";
-            alt2 = (diffX < 0) ? "right" : "left";
-        }
-
-        if (tryMove(alt1)) {
-            avoidDirection = alt1;
-            avoidTimer = 18;
-        } else if (tryMove(alt2)) {
-            avoidDirection = alt2;
-            avoidTimer = 18;
         }
     }
 
     private boolean tryMove(String dir) {
         if (dir.equals(lastBlockedDirection) && stuckCooldown > 0) return false;
 
-        int nextX = x, nextY = y;
+        String oldDir = this.direction;
+        this.direction = dir;
+        collisionOn = false;
+        // KIỂM TRA VA CHẠM (3 lớp chặn)
+        gp.cChecker.checkTile(this);
+      
+
+        Rectangle nextBounds = new Rectangle(getBounds());
         switch (dir) {
-            case "up": nextY -= speed; break;
-            case "down": nextY += speed; break;
-            case "left": nextX -= speed; break;
-            case "right": nextX += speed; break;
+            case "up": nextBounds.y -= speed; break;
+            case "down": nextBounds.y += speed; break;
+            case "left": nextBounds.x -= speed; break;
+            case "right": nextBounds.x += speed; break;
         }
 
-        // Check va chạm tường bằng Collision Rects từ TileManager
-        Rectangle nextBounds = new Rectangle(nextX + solidArea.x, nextY + solidArea.y, solidArea.width, solidArea.height);
-        for (Rectangle rect : gp.tileM.collisionRects) {
-            if (nextBounds.intersects(rect)) {
-                lastBlockedDirection = dir;
-                stuckCooldown = 12;
-                return false;
+        for (int i = 0; i < gp.chickens.size(); i++) {
+            Chicken other = gp.chickens.get(i);
+            if (other != null && other != this && other.alive && other.life > 0) {
+                if (nextBounds.intersects(other.getBounds())) {
+                    collisionOn = true;
+                    break;
+                }
             }
         }
+       
 
-        x = nextX;
-        y = nextY;
-        direction = dir;
-        return true;
+        gp.cChecker.checkPlayer(this);
+
+        if (!collisionOn) {
+            switch (dir) {
+                case "up": y -= speed; break;
+                case "down": y += speed; break;
+                case "left": x -= speed; break;
+                case "right": x += speed; break;
+            }
+            return true;
+        } else {
+            lastBlockedDirection = dir;
+            stuckCooldown = 15;
+            this.direction = oldDir;
+            return false;
+        }
     }
 
-    public void draw(Graphics2D g2) {
-        BufferedImage image = null;
+    @Override
+    public void takeDamage(int damage) {
+        if (!invincible) {
+            life -= damage;
+            hpBarOn = true;
+            hpBarCounter = 0;
+            // Kích hoạt nhấp nháy (Không đẩy lùi)
+            invincible = true;
+            invincibleCounter = 0;
 
-        if (!isAngry) {
-            image = up1;
-        } else {
-            switch (direction) {
-                case "up": image = (spriteNum == 1) ? up1_egg : up2_egg; break;
-                case "down": image = (spriteNum == 1) ? down1_egg : down2_egg; break;
-                case "left": image = (spriteNum == 1) ? left1_egg : left2_egg; break;
-                case "right": image = (spriteNum == 1) ? right1_egg : right2_egg; break;
-            }
-        }
-
-        if (image != null) {
-            g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
-        }
-
-        // Vẽ thanh máu
-        if (hpBarOn) {
-            double oneScale = (double) gp.tileSize / maxLife;
-            double hpBarValue = oneScale * life;
-
-            g2.setColor(new Color(35, 35, 35));
-            g2.fillRect(x - 1, y - 11, gp.tileSize + 2, 10);
-            g2.setColor(new Color(255, 0, 30));
-            g2.fillRect(x, y - 10, (int) hpBarValue, 8);
-
-            hpBarCounter++;
-            if (hpBarCounter > 600) {
-                hpBarCounter = 0;
+            if (life <= 0) {
+                life = 0;
+                alive = false;
                 hpBarOn = false;
             }
         }
+    }
+
+    public void respawn() {
+        this.x = defaultX;
+        this.y = defaultY;
+        this.life = maxLife;
+        this.alive = true;
+        this.invincible = false;
+        this.attacking = false;
+        this.respawnCounter = 0;
+        System.out.println("Ga da hoi sinh tai: " + x + ", " + y);
+        this.shrinkCounter = 20;
+    }
+
+    @Override
+    public void draw(Graphics2D g2) {
+        // 1. Vẽ vòng tròn ma thuật nếu đang chờ hồi sinh (2 giây cuối)
+        if ((!alive && respawnCounter > 180) || (alive && shrinkCounter > 0)) {
+            drawMagicCircle(g2);
+        }
+        //2. Vẽ con gà nếu còn sống
+        if (alive) {
+            BufferedImage image = null;
+            if (!attacking) {
+                image = up1;
+            } else {
+                switch (direction) {
+                    case "up": image = (spriteNum == 1) ? up1_egg : up2_egg; break;
+                    case "down": image = (spriteNum == 1) ? down1_egg : down2_egg; break;
+                    case "left": image = (spriteNum == 1) ? left1_egg : left2_egg; break;
+                    case "right": image = (spriteNum == 1) ? right1_egg : right2_egg; break;
+                }
+            }
+
+            if (!(invincible && invincibleCounter % 10 < 5)) {
+                if (image != null) {
+                    g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
+                }
+            }
+
+            if (shrinkCounter > 0) shrinkCounter--;
+            // 3. Vẽ thanh máu
+            if (hpBarOn) {
+                drawHPBar(g2);
+            }
+        }
+    }
+
+    private void drawHPBar(Graphics2D g2) {
+        double oneScale = (double) gp.tileSize / maxLife;
+        double hpBarValue = oneScale * life;
+
+        g2.setColor(new Color(35, 35, 35));
+        g2.fillRect(x - 1, y - 11, gp.tileSize + 2, 10);
+
+        g2.setColor(new Color(255, 0, 30));
+        g2.fillRect(x, y - 10, (int) hpBarValue, 8);
+
+        hpBarCounter++;
+        if (hpBarCounter > 300) hpBarOn = false;
+    }
+
+    private void drawMagicCircle(Graphics2D g2) {
+        float alpha;
+        int currentRadius;
+        int baseRadius = 30;
+        //1.khử răng cưa để vòng mượt
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        // 2. Tính toán độ trong suốt (Alpha) tăng dần khi sắp hồi sinh
+        if (!alive) {
+              // Hiệu ứng hiện dần khi đang chờ hồi sinh
+            alpha = Math.min(1f, (respawnCounter - 180) / 120f);
+            currentRadius = baseRadius;
+        } else {
+             // Hiệu ứng thu nhỏ và mờ dần sau khi đã hồi sinh
+            alpha = shrinkCounter / 20f;
+            currentRadius = (int) (baseRadius * (shrinkCounter / 20f));
+        }
+
+        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+
+        float hue = (respawnCounter % 100) / 100f;
+        g2.setColor(Color.getHSBColor(hue, 0.8f, 1.0f));
+        g2.setStroke(new BasicStroke(3));
+        g2.drawOval(
+                x + gp.tileSize / 2 - currentRadius / 2,
+                y + gp.tileSize / 2 - currentRadius / 2,
+                currentRadius,
+                currentRadius
+        );
+
+        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1f));
     }
 }

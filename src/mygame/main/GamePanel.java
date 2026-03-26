@@ -16,32 +16,35 @@ import mygame.ai.PathFinder;
 public class GamePanel extends JPanel implements Runnable {
 
     public Main main;
-     
+
     public Sound menuMusic = new Sound();
     public boolean isMenuMusicPlaying = false;
+
     // ===== GAME STATE =====
     public final int STATE_PLAY = 0;
     public final int STATE_LEVEL_COMPLETE = 1;
     public final int STATE_LEVEL2_PLAY = 2;
     public final int STATE_GAME_WIN = 3;
     public final int STATE_PAUSE = 4;
-    public final int STATE_GAME_COMPLETED = 5;  // Thêm trạng thái hoàn thành game
+    public final int STATE_GAME_COMPLETED = 5;
+    public final int STATE_GAME_OVER = 6;
 
     public int gameState = STATE_PLAY;
 
-    // THIẾT LẬP MÀN HÌNH (64x16 x 64x12)
+    // SCREEN
     public final int tileSize = 64;
     public final int maxScreenCol = 16;
     public final int maxScreenRow = 12;
     public final int screenWidth = tileSize * maxScreenCol;
     public final int screenHeight = tileSize * maxScreenRow;
 
-    // THIẾT LẬP THẾ GIỚI (Cùng kích thước với màn hình trong ví dụ này)
+    // WORLD
     public final int maxWorldCol = 16;
     public final int maxWorldRow = 12;
 
     int FPS = 60;
-    // KHỞI TẠO HỆ THỐNG
+
+    // SYSTEM
     public TileManager tileM = new TileManager(this);
     public KeyHandler keyH = new KeyHandler();
     public CollisionChecker cChecker = new CollisionChecker(this);
@@ -54,7 +57,7 @@ public class GamePanel extends JPanel implements Runnable {
     public int currentLevel = 1;
     Thread gameThread;
 
-    // THỰC THỂ (ENTITIES)
+    // ENTITIES
     public String playerName = "Player";
     public Player player;
     public ArrayList<Chicken> chickens = new ArrayList<>();
@@ -76,31 +79,33 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void setPlayerName(String playerName) {
         this.playerName = playerName;
-        if (player != null) player.name = playerName;
+        if (player != null) {
+            player.name = playerName;
+        }
     }
 
     public void setupGame() {
-        // Reset các đối tượng và các trạng thái
-        tileM.resetMapObjects();  // Reset bản đồ (các vật phẩm, đối tượng)
+        tileM.resetMapObjects();
+
         if (player != null) {
-            player.setDefaultValues();  // Cài đặt lại giá trị mặc định cho người chơi
+            player.setDefaultValues();
             player.name = this.playerName;
 
-            // Đặt lại vị trí của người chơi về điểm xuất phát của level 1
             if (tileM.playerStartX != 0 || tileM.playerStartY != 0) {
                 player.x = tileM.playerStartX;
                 player.y = tileM.playerStartY;
             }
         }
 
-        chickens.clear();  // Xóa danh sách gà
-        spawnInitialChickens();  // Tạo lại các gà cho cấp độ
-        eggSound.setFile("/res/audio/egg.wav");  // Tạo lại âm thanh trứng
+        chickens.clear();
+        spawnInitialChickens();
+
+        eggSound.setFile("/res/audio/egg.wav");
         tileM.resetMapObjects();
     }
-    
+
     public void playMenuMusic() {
-    if (!isMenuMusicPlaying) {
+        if (!isMenuMusicPlaying) {
             menuMusic.setFile("/res/audio/menu.wav");
             if (menuMusic.isLoaded()) {
                 menuMusic.play();
@@ -116,10 +121,10 @@ public class GamePanel extends JPanel implements Runnable {
             isMenuMusicPlaying = false;
         }
     }
-    
+
     public void playVictoryMusic() {
         System.out.println("Gọi playVictoryMusic");
-
+        victoryMusic.stop();
         victoryMusic.setFile("/res/audio/victory.wav");
 
         if (victoryMusic.isLoaded()) {
@@ -132,9 +137,12 @@ public class GamePanel extends JPanel implements Runnable {
     public void showLevel1WinScreen() {
         gameState = STATE_LEVEL_COMPLETE;
         mouseH.resetClick();
-        playVictoryMusic(); // nếu bạn muốn phát nhạc chiến thắng
+        if (player != null) {
+            player.stopFootstepSound();
+        }
+        playVictoryMusic();
     }
-    
+
     public void playGameOverMusic() {
         gameOverMusic.stop();
         gameOverMusic.setFile("/res/audio/gameover.wav");
@@ -142,12 +150,18 @@ public class GamePanel extends JPanel implements Runnable {
             gameOverMusic.play();
         }
     }
-
+    
     private void spawnInitialChickens() {
-        // Thêm gà tại vị trí cụ thể hoặc ngẫu nhiên
-        int centerX = screenWidth / 2 - tileSize / 2;
-        int centerY = screenHeight / 2 - tileSize / 2;
-        chickens.add(new Chicken(this, centerX, centerY));
+        chickens.clear();
+
+        chickens.add(new Chicken(this, 192, 128));
+        chickens.add(new Chicken(this, 64, 304));
+        chickens.add(new Chicken(this, 896, 192));
+        chickens.add(new Chicken(this, 480, 64));
+        chickens.add(new Chicken(this, 512, 384));
+        chickens.add(new Chicken(this, 896, 640));
+        chickens.add(new Chicken(this, 448, 608));
+        chickens.add(new Chicken(this, 624, 544));
     }
 
     public void startGameThread() {
@@ -191,24 +205,29 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    public void update() {
-        // Nếu game ở trạng thái "Level Complete"
+        public void update() {
+        // LEVEL 1 COMPLETE
         if (gameState == STATE_LEVEL_COMPLETE) {
             if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                 mouseH.clicked = false;
-                startLevel2();  // Tiến tới cấp độ 2
+                startLevel2();
             }
             return;
         }
 
-        // Nếu game ở trạng thái "Game Win"
+        // GAME WIN
         if (gameState == STATE_GAME_WIN) {
             if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                 mouseH.resetClick();
                 stopAllSounds();
                 stopGameThread();
-                main.showMenu();  // Quay lại menu chính
+                main.showMenu();
             }
+            return;
+        }
+
+        // GAME OVER
+        if (gameState == STATE_GAME_OVER) {
             return;
         }
 
@@ -216,93 +235,100 @@ public class GamePanel extends JPanel implements Runnable {
         if (keyH.escapePressed) {
             keyH.escapePressed = false;
 
-            if (gameState == STATE_PLAY) {
+            if (gameState == STATE_PLAY || gameState == STATE_LEVEL2_PLAY) {
                 gameState = STATE_PAUSE;
-
                 if (player != null) {
                     player.stopFootstepSound();
                 }
+                mouseH.resetClick();
                 return;
 
             } else if (gameState == STATE_PAUSE) {
-                gameState = STATE_PLAY;
-                return;
-            }
-        }
-        // Nếu game ở trạng thái "Game Completed"
-        if (gameState == STATE_GAME_COMPLETED) {
-            // Kiểm tra nút "Chơi lại"
-            if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                mouseH.resetClick();  // Reset trạng thái clicked
-                restartGame();  // Chơi lại game từ đầu
-            }
-
-            // Kiểm tra nút "Quay về Menu"
-            else if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                mouseH.resetClick();  // Reset trạng thái clicked
-                stopAllSounds();  // Dừng tất cả âm thanh
-                stopGameThread();  // Dừng game
-                main.showMenu();  // Quay lại menu chính
-            }
-            return;  // Dừng cập nhật nếu game đã hoàn thành
-        }
-         // Kiểm tra trạng thái "Level 2" và điều kiện hoàn thành game
-        if (gameState == STATE_LEVEL2_PLAY) {
-            if (player != null && player.hasEgg && player.getBounds().intersects(tileM.houseRect)) {
-                showGameCompletedScreen();  // Hiển thị màn hình hoàn thành game
+                gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
+                mouseH.resetClick();
                 return;
             }
         }
 
-        // Nếu game đang ở trạng thái "Pause", không làm gì thêm
         if (gameState == STATE_PAUSE) {
+            if (mouseH.clicked) {
+                if (ui.continueBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                    mouseH.resetClick();
+                    gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
+                    return;
+                }
+
+                if (ui.menuBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                    mouseH.resetClick();
+                    stopAllSounds();
+                    stopGameThread();
+                    main.showMenu();
+                    return;
+                }
+            }
             return;
         }
 
-        // Nếu game không phải đang ở trạng thái "Play", không làm gì thêm
-        if (gameState != STATE_PLAY) return;
+        // GAME COMPLETED
+        if (gameState == STATE_GAME_COMPLETED) {
+            if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                mouseH.resetClick();
+                restartGame();
+            } else if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                mouseH.resetClick();
+                stopAllSounds();
+                stopGameThread();
+                main.showMenu();
+            }
+            return;
+        }
 
-        // 2. Cập nhật Player và Kiểm tra nhặt đồ
+        if (gameState != STATE_PLAY && gameState != STATE_LEVEL2_PLAY) {
+            return;
+        }
+
+        // PLAYER UPDATE
         if (player != null) {
             player.update();
             tileM.checkItemCollisions(player.getBounds());
+
             if (tileM.houseRect != null && player.hasEgg && player.getBounds().intersects(tileM.houseRect)) {
                 if (currentLevel == 1) {
-                    showLevel1WinScreen();  // Hiển thị màn hình "Level Complete" khi hoàn thành Level 1
+                    showLevel1WinScreen();
                     return;
                 } else if (currentLevel == 2) {
-                    showGameCompletedScreen(); // dùng cái bạn đã có
+                    showGameCompletedScreen();
                     return;
                 }
             }
         }
 
-        // 3. Cập nhật danh sách Gà (Dùng Iterator để xóa an toàn khi gà chết)
-        Iterator<Chicken> iterator = chickens.iterator();
-        while (iterator.hasNext()) {
-            Chicken chicken = iterator.next();
-
-            if (chicken.life <= 0) {
-                iterator.remove();
-                continue;
-            }
+        // CHICKEN UPDATE
+        for (int i = chickens.size() - 1; i >= 0; i--) {
+            Chicken chicken = chickens.get(i);
 
             chicken.update();
 
-            // Va chạm gây sát thương cho người chơi
+            if (chicken.life <= 0 || !chicken.alive) {
+                chickens.remove(i);
+                continue;
+            }
+
             if (player != null && player.getBounds().intersects(chicken.getBounds())) {
-                player.takeDamage(10); 
+                if (!player.invincible) {
+                    player.takeDamage(10);
+                }
             }
         }
 
-        // 4. Kiểm tra điều kiện Thất bại
+        // GAME OVER
         if (player != null && player.health <= 0) {
             player.triggerGameOver();
             return;
         }
 
-        // 5. Cập nhật logic bản đồ (animation lơ lửng của vật phẩm)
-        tileM.update();  
+        // MAP UPDATE
+        tileM.update();
     }
 
     @Override
@@ -310,62 +336,41 @@ public class GamePanel extends JPanel implements Runnable {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
 
-        // --- VẼ THEO THỨ TỰ LỚP (Z-INDEX) ---
-
-        // Lớp 1: Bản đồ nền & Vật phẩm (Trứng/Vũ khí sẽ được TileManager quản lý ẩn/hiện)
         tileM.draw(g2);
 
-        // Lớp 2: Các thực thể (Gà)
         for (Chicken chicken : chickens) {
             chicken.draw(g2);
         }
 
-        // Lớp 3: Người chơi (Vẽ sau gà để đè lên gà khi đi sát)
         if (player != null) {
             player.draw(g2);
-           
         }
 
-        // Lớp 4: Tiền cảnh (Cây cối che đầu nhân vật)
         tileM.drawForeground(g2);
 
-        // Lớp 5: Giao diện người dùng (UI luôn nằm trên cùng)
         if (ui != null) {
             ui.draw(g2);
         }
-        if (gameState == STATE_PAUSE) {
-            g2.setColor(new Color(0, 0, 0, 180));
-            g2.fillRect(0, 0, screenWidth, screenHeight);
-
-            g2.setColor(Color.WHITE);
-            g2.setFont(g2.getFont().deriveFont(40f));
-            g2.drawString("PAUSED", screenWidth / 2 - 90, screenHeight / 2 - 20);
-
-            g2.setFont(g2.getFont().deriveFont(22f));
-            g2.drawString("Nhan ESC de tiep tuc", screenWidth / 2 - 110, screenHeight / 2 + 30);
-        }
-        g2.dispose();
     }
-    
+
     public void startNewGame() {
-        // Reset tất cả các trạng thái game
-        gameState = STATE_PLAY;  // Trạng thái bắt đầu chơi game
-        currentLevel = 1; // Bắt đầu từ level 1
-        tileM.loadLevelMap(1); // 🔥 QUAN TRỌNG: load lại map 1
-        setupGame();  // Cài đặt lại game
-        stopAllSounds();  // Dừng âm thanh
-        stopGameThread();  // Dừng thread game cũ
-        startGameThread();  // Bắt đầu thread game mới
+        gameState = STATE_PLAY;
+        currentLevel = 1;
+        tileM.loadLevelMap(1);
+        setupGame();
+        stopAllSounds();
+        stopGameThread();
+        startGameThread();
     }
-    
+
     public void completeLevel() {
         gameState = STATE_LEVEL_COMPLETE;
         playVictoryMusic();
     }
-    
-   public void startLevel2() {
+
+    public void startLevel2() {
         currentLevel = 2;
-        gameState = STATE_PLAY;
+        gameState = STATE_LEVEL2_PLAY;
 
         tileM.loadLevelMap(2);
 
@@ -382,6 +387,7 @@ public class GamePanel extends JPanel implements Runnable {
         chickens.clear();
         spawnInitialChickens();
     }
+
     public void stopAllSounds() {
         menuMusic.stop();
         victoryMusic.stop();
@@ -395,24 +401,29 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void showGameWinScreen() {
         gameState = STATE_GAME_WIN;
+        if (player != null) {
+            player.stopFootstepSound();
+        }
         playVictoryMusic();
     }
-  
+
     public void showGameCompletedScreen() {
         gameState = STATE_GAME_COMPLETED;
         mouseH.clicked = false;
-        if (player != null) player.stopFootstepSound();
+        if (player != null) {
+            player.stopFootstepSound();
+        }
         playVictoryMusic();
         repaint();
     }
-   public void restartGame() {
-        // Reset trạng thái game và cấp độ
-        gameState = STATE_PLAY;  // Trạng thái chơi game
-        currentLevel = 1;  // Quay lại level 1
+
+    public void restartGame() {
+        gameState = STATE_PLAY;
+        currentLevel = 1;
         tileM.loadLevelMap(1);
-        setupGame();  // Cài đặt lại game (sẽ reset tất cả các đối tượng)
-        stopAllSounds();  // Dừng tất cả âm thanh
-        stopGameThread();  // Dừng thread game cũ
-        startGameThread();  // Bắt đầu thread game mới
+        setupGame();
+        stopAllSounds();
+        stopGameThread();
+        startGameThread();
     }
 }
