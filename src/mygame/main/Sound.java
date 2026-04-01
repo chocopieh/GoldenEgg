@@ -4,6 +4,7 @@ import java.net.URL;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
+import javax.sound.sampled.FloatControl;
 
 public class Sound {
 
@@ -28,6 +29,7 @@ public class Sound {
             AudioInputStream ais = AudioSystem.getAudioInputStream(soundURL);
             clip = AudioSystem.getClip();
             clip.open(ais);
+            ais.close();
 
             System.out.println("Đã load âm thanh: " + path);
 
@@ -92,5 +94,31 @@ public class Sound {
 
     public boolean isRunning() {
         return clip != null && clip.isRunning();
+    }
+
+    public void setVolume(int volumePercent) {
+        try {
+            if (clip == null) return;
+            if (!clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) return;
+
+            FloatControl gainControl =
+                    (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+
+            if (volumePercent <= 0) {
+                gainControl.setValue(gainControl.getMinimum());
+                return;
+            }
+
+            float volume = volumePercent / 100f;
+            float dB = (float) (20.0 * Math.log10(volume));
+
+            if (dB < gainControl.getMinimum()) dB = gainControl.getMinimum();
+            if (dB > gainControl.getMaximum()) dB = gainControl.getMaximum();
+
+            gainControl.setValue(dB);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

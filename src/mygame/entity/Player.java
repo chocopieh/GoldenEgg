@@ -13,6 +13,7 @@ import javax.swing.SwingUtilities;
 import mygame.main.GameOverDialog;
 import mygame.main.GamePanel;
 import mygame.main.KeyHandler;
+import mygame.main.Sound;
 
 public class Player extends Entity {
 
@@ -27,8 +28,8 @@ public class Player extends Entity {
 
     private int attackCounter = 0;
     private boolean gameOverShown = false;
-    
-    private mygame.main.Sound footstepSound = new mygame.main.Sound();
+
+    private final Sound footstepSound = new Sound();
     private boolean isFootstepPlaying = false;
 
     public BufferedImage up1_egg, up2_egg, down1_egg, down2_egg, left1_egg, left2_egg, right1_egg, right2_egg;
@@ -65,10 +66,15 @@ public class Player extends Entity {
         invincible = false;
         invincibleCounter = 0;
         gameOverShown = false;
+
+        stopFootstepSound();
+        applyFootstepVolume();
     }
 
     public void getPlayerImage() {
         footstepSound.setFile("/res/audio/footstep.wav");
+        applyFootstepVolume();
+
         try {
             up1 = setup("/res/tiles/player01_up1.png");
             up2 = setup("/res/tiles/player01_up2.png");
@@ -110,8 +116,22 @@ public class Player extends Entity {
     public BufferedImage setup(String imageName) throws IOException {
         return ImageIO.read(getClass().getResourceAsStream(imageName));
     }
+
+    private void applyFootstepVolume() {
+        if (footstepSound != null && footstepSound.isLoaded()) {
+            footstepSound.setVolume(gp.isSfxMuted() ? 0 : gp.getSfxVolume());
+        }
+    }
+
     private void playFootstepSound() {
-        if (!isFootstepPlaying && footstepSound != null && footstepSound.isLoaded()) {
+        applyFootstepVolume();
+
+        if (gp.isSfxMuted() || gp.getSfxVolume() <= 0) {
+            stopFootstepSound();
+            return;
+        }
+
+        if (!isFootstepPlaying && footstepSound.isLoaded()) {
             footstepSound.loop();
             isFootstepPlaying = true;
         }
@@ -130,13 +150,13 @@ public class Player extends Entity {
         if (attacking) {
             attacking();
         } else {
-          
-        if (keyH.spacePressed && hasWeapon) {
-            stopFootstepSound();
-            attacking = true;
-            attackCounter = 0;
 
-        } else if (keyH.upPressed || keyH.downPressed || keyH.leftPressed || keyH.rightPressed) {
+            if (keyH.spacePressed && hasWeapon) {
+                stopFootstepSound();
+                attacking = true;
+                attackCounter = 0;
+
+            } else if (keyH.upPressed || keyH.downPressed || keyH.leftPressed || keyH.rightPressed) {
 
                 if (keyH.upPressed) direction = "up";
                 else if (keyH.downPressed) direction = "down";
@@ -189,7 +209,7 @@ public class Player extends Entity {
             int solidAreaWidth = solidArea.width;
             int solidAreaHeight = solidArea.height;
 
-            switch(direction) {
+            switch (direction) {
                 case "up": y -= gp.tileSize; break;
                 case "down": y += gp.tileSize; break;
                 case "left": x -= gp.tileSize; break;
@@ -230,6 +250,7 @@ public class Player extends Entity {
             hasEgg = true;
             gp.tileM.eggCollected = true;
             gp.tileM.eggRect = null;
+            gp.playEggSound();
         }
 
         if (hasEgg && !hasWeapon && gp.tileM.weaponRect != null && pRect.intersects(gp.tileM.weaponRect)) {
@@ -311,7 +332,7 @@ public class Player extends Entity {
         }
     }
 
-   public void triggerGameOver() {
+    public void triggerGameOver() {
         if (gameOverShown) return;
         gameOverShown = true;
 

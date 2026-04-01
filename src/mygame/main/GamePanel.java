@@ -15,9 +15,6 @@ import mygame.ai.PathFinder;
 public class GamePanel extends JPanel implements Runnable {
 
     public Main main;
-
-    public Sound menuMusic = new Sound();
-    public boolean isMenuMusicPlaying = false;
     private boolean hasSavedProgress = false;
 
     // ===== GAME STATE =====
@@ -51,9 +48,11 @@ public class GamePanel extends JPanel implements Runnable {
     public UI ui;
     public PathFinder pFinder = new PathFinder(this);
     public MouseHandler mouseH = new MouseHandler();
+
     public Sound gameOverMusic = new Sound();
     public Sound victoryMusic = new Sound();
     public Sound eggSound = new Sound();
+
     public int currentLevel = 1;
     Thread gameThread;
 
@@ -98,6 +97,7 @@ public class GamePanel extends JPanel implements Runnable {
             player.stopFootstepSound();
         }
 
+        stopAllSounds();
         main.showMenu();
     }
 
@@ -106,11 +106,51 @@ public class GamePanel extends JPanel implements Runnable {
         keyH.escapePressed = false;
         mouseH.resetClick();
         gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
+        refreshAudioSettings();
         requestFocusInWindow();
     }
 
     public void clearSavedProgress() {
         hasSavedProgress = false;
+    }
+
+    // ===== SETTINGS LINK =====
+    private MenuPanel getMenuPanel() {
+        return (main != null) ? main.menuPanel : null;
+    }
+
+    public int getMusicVolume() {
+        MenuPanel mp = getMenuPanel();
+        return (mp != null) ? mp.getMusicVolume() : 70;
+    }
+
+    public int getSfxVolume() {
+        MenuPanel mp = getMenuPanel();
+        return (mp != null) ? mp.getSfxVolume() : 80;
+    }
+
+    public boolean isMusicMuted() {
+        MenuPanel mp = getMenuPanel();
+        return mp != null && mp.isMusicMuted();
+    }
+
+    public boolean isSfxMuted() {
+        MenuPanel mp = getMenuPanel();
+        return mp != null && mp.isSfxMuted();
+    }
+
+    public void refreshAudioSettings() {
+        if (victoryMusic != null && victoryMusic.isLoaded()) {
+            victoryMusic.setVolume(isMusicMuted() ? 0 : getMusicVolume());
+        }
+
+        if (gameOverMusic != null && gameOverMusic.isLoaded()) {
+            gameOverMusic.setVolume(isMusicMuted() ? 0 : getMusicVolume());
+        }
+
+        if (eggSound != null && eggSound.isLoaded()) {
+            eggSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+        }
     }
 
     public void setupGame() {
@@ -132,24 +172,21 @@ public class GamePanel extends JPanel implements Runnable {
         spawnInitialChickens();
 
         eggSound.setFile("/res/audio/egg.wav");
+        eggSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+
         tileM.resetMapObjects();
     }
 
+    // Menu music giờ do MenuPanel quản lý
     public void playMenuMusic() {
-        if (!isMenuMusicPlaying) {
-            menuMusic.setFile("/res/audio/menu.wav");
-            if (menuMusic.isLoaded()) {
-                menuMusic.play();
-                menuMusic.loop();
-                isMenuMusicPlaying = true;
-            }
+        if (main != null && main.menuPanel != null) {
+            main.menuPanel.playMenuMusic();
         }
     }
 
     public void stopMenuMusic() {
-        if (menuMusic != null) {
-            menuMusic.stop();
-            isMenuMusicPlaying = false;
+        if (main != null && main.menuPanel != null) {
+            main.menuPanel.stopMenuMusic();
         }
     }
 
@@ -159,6 +196,7 @@ public class GamePanel extends JPanel implements Runnable {
         victoryMusic.setFile("/res/audio/victory.wav");
 
         if (victoryMusic.isLoaded()) {
+            victoryMusic.setVolume(isMusicMuted() ? 0 : getMusicVolume());
             victoryMusic.play();
         } else {
             System.out.println("Khong load duoc victory.wav");
@@ -169,18 +207,31 @@ public class GamePanel extends JPanel implements Runnable {
         clearSavedProgress();
         gameState = STATE_LEVEL_COMPLETE;
         mouseH.resetClick();
+
         if (player != null) {
             player.stopFootstepSound();
         }
+
         playVictoryMusic();
     }
 
     public void playGameOverMusic() {
         gameOverMusic.stop();
         gameOverMusic.setFile("/res/audio/gameover.wav");
+
         if (gameOverMusic.isLoaded()) {
+            gameOverMusic.setVolume(isMusicMuted() ? 0 : getMusicVolume());
             gameOverMusic.play();
         }
+    }
+
+    public void playEggSound() {
+        if (!eggSound.isLoaded()) {
+            eggSound.setFile("/res/audio/egg.wav");
+        }
+
+        eggSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+        eggSound.play();
     }
 
     private void spawnInitialChickens() {
@@ -197,9 +248,11 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void startGameThread() {
         stopMenuMusic();
+
         if (gameThread != null) {
             gameThread = null;
         }
+
         if (gameThread == null || !gameThread.isAlive()) {
             gameThread = new Thread(this);
             gameThread.start();
@@ -267,9 +320,11 @@ public class GamePanel extends JPanel implements Runnable {
 
             if (gameState == STATE_PLAY || gameState == STATE_LEVEL2_PLAY) {
                 gameState = STATE_PAUSE;
+
                 if (player != null) {
                     player.stopFootstepSound();
                 }
+
                 mouseH.resetClick();
                 return;
 
@@ -277,6 +332,7 @@ public class GamePanel extends JPanel implements Runnable {
                 hasSavedProgress = false;
                 gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
                 mouseH.resetClick();
+                refreshAudioSettings();
                 return;
             }
         }
@@ -287,6 +343,7 @@ public class GamePanel extends JPanel implements Runnable {
                     mouseH.resetClick();
                     hasSavedProgress = false;
                     gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
+                    refreshAudioSettings();
                     return;
                 }
 
@@ -417,10 +474,10 @@ public class GamePanel extends JPanel implements Runnable {
 
         chickens.clear();
         spawnInitialChickens();
+        refreshAudioSettings();
     }
 
     public void stopAllSounds() {
-        menuMusic.stop();
         victoryMusic.stop();
         gameOverMusic.stop();
         eggSound.stop();
@@ -433,9 +490,11 @@ public class GamePanel extends JPanel implements Runnable {
     public void showGameWinScreen() {
         clearSavedProgress();
         gameState = STATE_GAME_WIN;
+
         if (player != null) {
             player.stopFootstepSound();
         }
+
         playVictoryMusic();
     }
 
@@ -443,9 +502,11 @@ public class GamePanel extends JPanel implements Runnable {
         clearSavedProgress();
         gameState = STATE_GAME_COMPLETED;
         mouseH.clicked = false;
+
         if (player != null) {
             player.stopFootstepSound();
         }
+
         playVictoryMusic();
         repaint();
     }
