@@ -28,6 +28,7 @@ public class Player extends Entity {
     public int maxHealth = 100;
 
     private int attackCounter = 0;
+    private boolean attackHitDone = false;
     private boolean gameOverShown = false;
 
     private final Sound footstepSound = new Sound();
@@ -120,10 +121,14 @@ public class Player extends Entity {
 
     private void applyFootstepVolume() {
         if (footstepSound != null && footstepSound.isLoaded()) {
-            footstepSound.setVolume(gp.isSfxMuted() ? 0 : gp.getSfxVolume());
+            footstepSound.setVolume(gp.isFootstepMuted() ? 0 : gp.getFootstepVolume());
         }
     }
 
+    public void refreshFootstepVolume() {
+        applyFootstepVolume();
+    }
+    
     private void playFootstepSound() {
         applyFootstepVolume();
 
@@ -146,7 +151,7 @@ public class Player extends Entity {
         isFootstepPlaying = false;
     }
 
-    @Override
+   @Override
     public void update() {
         if (attacking) {
             attacking();
@@ -156,6 +161,8 @@ public class Player extends Entity {
                 stopFootstepSound();
                 attacking = true;
                 attackCounter = 0;
+                attackHitDone = false;
+                keyH.spacePressed = false; // bấm 1 lần = 1 phát
 
             } else if (keyH.upPressed || keyH.downPressed || keyH.leftPressed || keyH.rightPressed) {
 
@@ -179,7 +186,7 @@ public class Player extends Entity {
                     stopFootstepSound();
                 }
 
-                checkObjectInteraction(); // chuyển xuống đây
+                checkObjectInteraction();
 
                 spriteCounter++;
                 if (spriteCounter > 12) {
@@ -190,7 +197,7 @@ public class Player extends Entity {
             } else {
                 spriteNum = 1;
                 stopFootstepSound();
-                checkObjectInteraction(); // đứng yên trên item vẫn nhặt được
+                checkObjectInteraction();
             }
         }
 
@@ -206,41 +213,75 @@ public class Player extends Entity {
     public void attacking() {
         attackCounter++;
 
-        if (attackCounter <= 15) {
-            int currentWorldX = x;
-            int currentWorldY = y;
-            int solidAreaWidth = solidArea.width;
-            int solidAreaHeight = solidArea.height;
-
-            switch (direction) {
-                case "up": y -= gp.tileSize; break;
-                case "down": y += gp.tileSize; break;
-                case "left": x -= gp.tileSize; break;
-                case "right": x += gp.tileSize; break;
-            }
-
-            solidArea.width = gp.tileSize;
-            solidArea.height = gp.tileSize;
-
+        // frame gây sát thương
+        if (!attackHitDone && attackCounter == 4) {
             checkAttackMonster();
-
-            x = currentWorldX;
-            y = currentWorldY;
-            solidArea.width = solidAreaWidth;
-            solidArea.height = solidAreaHeight;
+            attackHitDone = true;
         }
 
+        // kết thúc animation đánh
         if (attackCounter > 10) {
             attacking = false;
             attackCounter = 0;
+            attackHitDone = false;
         }
     }
 
-    public void checkAttackMonster() {
+     public void checkAttackMonster() {
+        Rectangle playerBody = new Rectangle(
+                x + solidArea.x,
+                y + solidArea.y,
+                solidArea.width,
+                solidArea.height
+        );
+
+        Rectangle attackBox = null;
+
+        switch (direction) {
+            case "up":
+                attackBox = new Rectangle(
+                        playerBody.x,
+                        playerBody.y - gp.tileSize,
+                        playerBody.width,
+                        gp.tileSize
+                );
+                break;
+
+            case "down":
+                attackBox = new Rectangle(
+                        playerBody.x,
+                        playerBody.y + playerBody.height,
+                        playerBody.width,
+                        gp.tileSize
+                );
+                break;
+
+            case "left":
+                attackBox = new Rectangle(
+                        playerBody.x - gp.tileSize,
+                        playerBody.y,
+                        gp.tileSize,
+                        playerBody.height
+                );
+                break;
+
+            case "right":
+                attackBox = new Rectangle(
+                        playerBody.x + playerBody.width,
+                        playerBody.y,
+                        gp.tileSize,
+                        playerBody.height
+                );
+                break;
+        }
+
+        if (attackBox == null) return;
+
         for (Chicken chicken : gp.chickens) {
             if (chicken != null && chicken.alive) {
-                if (getBounds().intersects(chicken.getBounds())) {
+                if (attackBox.intersects(chicken.getBounds())) {
                     chicken.takeDamage(20);
+                    break; // mỗi phát chém trúng 1 con thôi
                 }
             }
         }

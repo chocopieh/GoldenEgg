@@ -21,6 +21,13 @@ public class UI {
     public Rectangle backBtn = new Rectangle();
     public Rectangle continueBtn = new Rectangle();
     public Rectangle menuBtn = new Rectangle();
+    public Rectangle musicMinusBtn = new Rectangle();
+    public Rectangle musicPlusBtn = new Rectangle();
+    public Rectangle musicMuteBtn = new Rectangle();
+
+    public Rectangle footMinusBtn = new Rectangle();
+    public Rectangle footPlusBtn = new Rectangle();
+    public Rectangle footMuteBtn = new Rectangle();
 
     public UI(GamePanel gp) {
         this.gp = gp;
@@ -60,11 +67,28 @@ public class UI {
 
     private void updatePauseButtons() {
         int h = getUIHeight();
+        int w = getUIWidth();
+
         int btnW = 340;
         int btnH = 80;
 
-        setCenteredButtonBounds(continueBtn, h / 2 + 20, btnW, btnH);
-        setCenteredButtonBounds(menuBtn, h / 2 + 130, btnW, btnH);
+        setCenteredButtonBounds(continueBtn, h / 2 + 120, btnW, btnH);
+        setCenteredButtonBounds(menuBtn, h / 2 + 220, btnW, btnH);
+
+        int rowW = 60;
+        int rowH = 40;
+        int centerX = w / 2;
+
+        int musicY = h / 2 - 40;
+        int footY = h / 2 + 25;
+
+        musicMinusBtn.setBounds(centerX - 140, musicY, rowW, rowH);
+        musicPlusBtn.setBounds(centerX + 80, musicY, rowW, rowH);
+        musicMuteBtn.setBounds(centerX + 155, musicY, 90, rowH);
+
+        footMinusBtn.setBounds(centerX - 140, footY, rowW, rowH);
+        footPlusBtn.setBounds(centerX + 80, footY, rowW, rowH);
+        footMuteBtn.setBounds(centerX + 155, footY, 90, rowH);
     }
 
     private void updateGameWinButtons() {
@@ -342,21 +366,49 @@ public class UI {
 
         updatePauseButtons();
 
+        // nền tối
         g2.setColor(new Color(0, 0, 0, 180));
         g2.fillRect(0, 0, w, h);
 
+        // tiêu đề
         g2.setFont(loadFont(32f));
         g2.setColor(new Color(255, 230, 90));
         String title = "PAUSED";
         int titleX = w / 2 - g2.getFontMetrics().stringWidth(title) / 2;
         g2.drawString(title, titleX, h / 2 - 120);
 
+        // mô tả
         g2.setFont(new Font("Arial", Font.PLAIN, 16));
         g2.setColor(Color.WHITE);
         String sub = "Chọn tiếp tục hoặc quay về menu";
         int subX = w / 2 - g2.getFontMetrics().stringWidth(sub) / 2;
         g2.drawString(sub, subX, h / 2 - 75);
 
+        // dòng GAME MUSIC
+        g2.setFont(loadFont(18f));
+        g2.setColor(Color.WHITE);
+        g2.drawString("GAME MUSIC", w / 2 - 260, h / 2 - 10);
+
+        g2.setColor(new Color(255, 230, 120));
+        g2.drawString(String.valueOf(gp.getGameMusicVolume()), w / 2 + 5, h / 2 + 18);
+
+        drawSmallButton(g2, musicMinusBtn, "-");
+        drawSmallButton(g2, musicPlusBtn, "+");
+        drawSmallButton(g2, musicMuteBtn, gp.isGameMusicMuted() ? "UNMUTE" : "MUTE");
+
+        // dòng FOOTSTEP
+        g2.setFont(loadFont(18f));
+        g2.setColor(Color.WHITE);
+        g2.drawString("FOOTSTEP", w / 2 - 260, h / 2 + 55);
+
+        g2.setColor(new Color(255, 230, 120));
+        g2.drawString(String.valueOf(gp.getFootstepVolume()), w / 2 + 5, h / 2 + 83);
+
+        drawSmallButton(g2, footMinusBtn, "-");
+        drawSmallButton(g2, footPlusBtn, "+");
+        drawSmallButton(g2, footMuteBtn, gp.isFootstepMuted() ? "UNMUTE" : "MUTE");
+
+        // nút CONTINUE
         boolean continueHover = continueBtn.contains(gp.mouseH.mouseX, gp.mouseH.mouseY);
         g2.setColor(continueHover ? new Color(255, 210, 90) : new Color(255, 180, 50));
         g2.fillRoundRect(continueBtn.x, continueBtn.y, continueBtn.width, continueBtn.height, 25, 25);
@@ -368,6 +420,7 @@ public class UI {
         g2.setColor(Color.BLACK);
         drawCenteredTextInButton(g2, "CONTINUE", continueBtn);
 
+        // nút MAIN MENU
         boolean menuHover = menuBtn.contains(gp.mouseH.mouseX, gp.mouseH.mouseY);
         g2.setColor(menuHover ? new Color(255, 210, 90) : new Color(255, 180, 50));
         g2.fillRoundRect(menuBtn.x, menuBtn.y, menuBtn.width, menuBtn.height, 25, 25);
@@ -391,5 +444,19 @@ public class UI {
         int x = btn.x + (btn.width - fm.stringWidth(text)) / 2;
         int y = btn.y + ((btn.height - fm.getHeight()) / 2) + fm.getAscent();
         g2.drawString(text, x, y);
+    }
+    
+    private void drawSmallButton(Graphics2D g2, Rectangle btn, String text) {
+        boolean hover = btn.contains(gp.mouseH.mouseX, gp.mouseH.mouseY);
+
+        g2.setColor(hover ? new Color(255, 220, 120) : new Color(255, 180, 70));
+        g2.fillRoundRect(btn.x, btn.y, btn.width, btn.height, 16, 16);
+
+        g2.setColor(new Color(60, 30, 10));
+        g2.drawRoundRect(btn.x, btn.y, btn.width, btn.height, 16, 16);
+
+        g2.setFont(loadFont(16f));
+        g2.setColor(Color.BLACK);
+        drawCenteredTextInButton(g2, text, btn);
     }
 }

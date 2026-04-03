@@ -14,6 +14,12 @@ import java.awt.RenderingHints;
 public class Chicken extends Entity {
 
     GamePanel gp;
+    private int attackCounter = 0; // Bộ đếm thời gian giữa các lần mổ
+    private int knockBackCounter = 0;
+    private String knockBackDirection = "down";
+    private static final int KNOCKBACK_DURATION = 5;
+    private static final int KNOCKBACK_SPEED = 6;
+    
 // --- Hệ thống HP & Trạng thái ---
     private boolean hpBarOn = false;
     private int hpBarCounter = 0;
@@ -37,7 +43,7 @@ public class Chicken extends Entity {
         this.y = startY;
         this.defaultX = startX;
         this.defaultY = startY;
-        this.speed = 1;
+        this.speed = 2;
         this.direction = "down";
 
         this.maxLife = 100;
@@ -59,6 +65,7 @@ public class Chicken extends Entity {
             left1 = up1;
             right1 = up1;
 
+            angry = setup("/res/tiles/chicken_gian.png");
              // Ảnh trạng thái đuổi theo (Angry)
             up1_egg = setup("/res/tiles/chicken_up1.png");
             up2_egg = setup("/res/tiles/chicken_up2.png");
@@ -77,9 +84,9 @@ public class Chicken extends Entity {
         return ImageIO.read(getClass().getResourceAsStream(path));
     }
 
-    @Override
+@Override
     public void update() {
-        // 1. Xử lý thời gian bất tử và nhấp nháy
+        // 1. Xử lý thời gian bất tử và nhấp nháy của con gà khi bị trúng đòn
         if (invincible) {
             invincibleCounter++;
             if (invincibleCounter > 40) {
@@ -89,21 +96,54 @@ public class Chicken extends Entity {
         }
 
         if (stuckCooldown > 0) stuckCooldown--;
+        if (knockBackCounter > 0) {
+            moveKnockBack();
+            knockBackCounter--;
+
+            spriteCounter++;
+            if (spriteCounter > 8) {
+                spriteNum = (spriteNum == 1) ? 2 : 1;
+                spriteCounter = 0;
+            }
+            return;
+        }
+
         // 2. Tính khoảng cách đến Player
         int diffX = (gp.player.x + gp.tileSize / 2) - (this.x + gp.tileSize / 2);
         int diffY = (gp.player.y + gp.tileSize / 2) - (this.y + gp.tileSize / 2);
         double distance = Math.sqrt(diffX * diffX + diffY * diffY);
 
-          // 3. AI đuổi theo khi Player có trứng
-        if (gp.player.hasEgg && distance < 350) {
+        // 3. AI: Đuổi theo và Tấn công khi Player cầm trứng
+        if (gp.player.hasEgg && distance < 250) { // Tăng tầm nhìn lên 400 cho hung hãn
             attacking = true;
             moveTowardPlayer(diffX, diffY);
+
+            // --- CƠ CHẾ TỰ ĐỘNG TẤN CÔNG (MỔ) ---
+            // Nếu khoảng cách nhỏ hơn hoặc bằng 1 Tile (đã áp sát)
+            if (distance <= gp.tileSize) {
+                attackCounter++; // Tăng bộ đếm nạp đạn mổ
+                
+                // Sau mỗi 60 frame (khoảng 1 giây) thì mổ 1 lần
+                if (attackCounter >= 30) {
+                    // Gọi hàm nhận sát thương của Player
+                    // Lưu ý: Đảm bảo bên Player.java đã có hàm takeDamage(int)
+                    gp.player.takeDamage(10); 
+                    
+                    System.out.println("Gà đã chủ động mổ Player!");
+                    attackCounter = 0; // Reset để chờ lần mổ tiếp theo
+                }
+            } else {
+                attackCounter = 0; // Reset nếu Player chạy thoát ra xa
+            }
         } else {
+            // Nếu Player không cầm trứng hoặc ở quá xa: Gà đứng yên (Ngủ)
             attacking = false;
+            attackCounter = 0;
             spriteNum = 1;
             return;
         }
-        // 4. Animation chân chạy
+
+        // 4. Animation chân chạy khi đang đuổi theo
         spriteCounter++;
         if (spriteCounter > 10) {
             spriteNum = (spriteNum == 1) ? 2 : 1;
@@ -191,16 +231,81 @@ public class Chicken extends Entity {
             life -= damage;
             hpBarOn = true;
             hpBarCounter = 0;
-            // Kích hoạt nhấp nháy (Không đẩy lùi)
+
             invincible = true;
             invincibleCounter = 0;
+
+            attackCounter = 0;
+            avoidTimer = 0;
+            avoidDirection = null;
+
+            setKnockBackDirectionFromPlayer();
+            knockBackCounter = KNOCKBACK_DURATION;
 
             if (life <= 0) {
                 life = 0;
                 alive = false;
                 hpBarOn = false;
+                knockBackCounter = 0;
             }
         }
+    }
+    
+    private void setKnockBackDirectionFromPlayer() {
+        int playerCenterX = gp.player.x + gp.tileSize / 2;
+        int playerCenterY = gp.player.y + gp.tileSize / 2;
+        int chickenCenterX = this.x + gp.tileSize / 2;
+        int chickenCenterY = this.y + gp.tileSize / 2;
+
+        int diffX = chickenCenterX - playerCenterX;
+        int diffY = chickenCenterY - playerCenterY;
+
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+            knockBackDirection = (diffX >= 0) ? "right" : "left";
+        } else {
+            knockBackDirection = (diffY >= 0) ? "down" : "up";
+        }
+    }
+
+    private void moveKnockBack() {
+        int oldSpeed = speed;
+        String oldDirection = direction;
+
+        speed = KNOCKBACK_SPEED;
+        direction = knockBackDirection;
+        collisionOn = false;
+
+        gp.cChecker.checkTile(this);
+
+        Rectangle nextBounds = new Rectangle(getBounds());
+        switch (knockBackDirection) {
+            case "up": nextBounds.y -= speed; break;
+            case "down": nextBounds.y += speed; break;
+            case "left": nextBounds.x -= speed; break;
+            case "right": nextBounds.x += speed; break;
+        }
+
+        for (int i = 0; i < gp.chickens.size(); i++) {
+            Chicken other = gp.chickens.get(i);
+            if (other != null && other != this && other.alive && other.life > 0) {
+                if (nextBounds.intersects(other.getBounds())) {
+                    collisionOn = true;
+                    break;
+                }
+            }
+        }
+
+        if (!collisionOn) {
+            switch (knockBackDirection) {
+                case "up": y -= speed; break;
+                case "down": y += speed; break;
+                case "left": x -= speed; break;
+                case "right": x += speed; break;
+            }
+        }
+
+        speed = oldSpeed;
+        direction = oldDirection;
     }
 
     public void respawn() {
@@ -215,34 +320,52 @@ public class Chicken extends Entity {
         this.shrinkCounter = 20;
     }
 
-    @Override
+@Override
     public void draw(Graphics2D g2) {
-        // 1. Vẽ vòng tròn ma thuật nếu đang chờ hồi sinh (2 giây cuối)
+        // 1. Vẽ vòng tròn ma thuật (Hiệu ứng hồi sinh)
         if ((!alive && respawnCounter > 180) || (alive && shrinkCounter > 0)) {
             drawMagicCircle(g2);
         }
-        //2. Vẽ con gà nếu còn sống
+
+        // 2. Vẽ con gà nếu còn sống
         if (alive) {
             BufferedImage image = null;
+
+            // Tính toán lại khoảng cách để quyết định ảnh hiển thị
+            int diffX = (gp.player.x + gp.tileSize / 2) - (this.x + gp.tileSize / 2);
+            int diffY = (gp.player.y + gp.tileSize / 2) - (this.y + gp.tileSize / 2);
+            double distance = Math.sqrt(diffX * diffX + diffY * diffY);
+
             if (!attacking) {
+                // TRẠNG THÁI 1: Đang ngủ (Chưa thấy Player cầm trứng)
                 image = up1;
             } else {
-                switch (direction) {
-                    case "up": image = (spriteNum == 1) ? up1_egg : up2_egg; break;
-                    case "down": image = (spriteNum == 1) ? down1_egg : down2_egg; break;
-                    case "left": image = (spriteNum == 1) ? left1_egg : left2_egg; break;
-                    case "right": image = (spriteNum == 1) ? right1_egg : right2_egg; break;
+                // TRẠNG THÁI 2: Đang đuổi theo hoặc đang mổ
+                if (distance <= gp.tileSize + 5) { 
+                    // Nếu áp sát (khoảng cách cực gần): Hiện ảnh Giận dữ/Mổ
+                    image = angry; 
+                } else {
+                    // Nếu đang đuổi theo từ xa: Hiện animation chân chạy
+                    switch (direction) {
+                        case "up": image = (spriteNum == 1) ? up1_egg : up2_egg; break;
+                        case "down": image = (spriteNum == 1) ? down1_egg : down2_egg; break;
+                        case "left": image = (spriteNum == 1) ? left1_egg : left2_egg; break;
+                        case "right": image = (spriteNum == 1) ? right1_egg : right2_egg; break;
+                    }
                 }
             }
 
+            // 3. Xử lý hiệu ứng nhấp nháy khi gà bị trúng đòn (invincible)
             if (!(invincible && invincibleCounter % 10 < 5)) {
                 if (image != null) {
                     g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
                 }
             }
 
+            // Giảm bộ đếm hiệu ứng vòng tròn sau khi hồi sinh
             if (shrinkCounter > 0) shrinkCounter--;
-            // 3. Vẽ thanh máu
+
+            // 4. Vẽ thanh máu (HP Bar)
             if (hpBarOn) {
                 drawHPBar(g2);
             }

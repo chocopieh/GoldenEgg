@@ -88,20 +88,40 @@ public class Main {
         cardLayout.show(container, "menu");
         container.revalidate();
         container.repaint();
-        menuPanel.requestFocusInWindow();
+
+        if (gamePanel != null) {
+            gamePanel.stopAllSounds();
+            try {
+                gamePanel.stopGameplayMusic();
+            } catch (Exception e) {
+                // bỏ qua nếu chưa có gameplayMusic
+            }
+        }
+
         menuPanel.playMenuMusic();
+        menuPanel.requestFocusInWindow();
     }
 
     public void showGame() {
         cardLayout.show(container, "game");
         container.revalidate();
         container.repaint();
+
+        if (menuPanel != null) {
+            menuPanel.stopMenuMusic();
+        }
+
         gamePanel.requestFocusInWindow();
     }
 
     public void startGame(String playerName) {
+        if (menuPanel != null) {
+            menuPanel.stopMenuMusic();
+        }
+
         gamePanel.setPlayerName(playerName);
         gamePanel.startNewGame();
+
         cardLayout.show(container, "game");
         container.revalidate();
         container.repaint();
