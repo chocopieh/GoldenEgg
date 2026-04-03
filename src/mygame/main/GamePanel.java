@@ -1,11 +1,16 @@
 package mygame.main;
 
 import javax.swing.JPanel;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import java.awt.Dimension;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.RadialGradientPaint;
+import java.awt.geom.Point2D;
 import java.util.ArrayList;
+
 import mygame.tile.TileManager;
 import mygame.entity.Player;
 import mygame.entity.Chicken;
@@ -16,6 +21,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     public Main main;
     private boolean hasSavedProgress = false;
+    private int eggEffectTick = 0;
 
     // ===== GAME STATE =====
     public final int STATE_PLAY = 0;
@@ -28,12 +34,15 @@ public class GamePanel extends JPanel implements Runnable {
 
     public int gameState = STATE_PLAY;
 
-    // SCREEN
-    public final int tileSize = 64;
+    // SCREEN SETTINGS
+    public final int originalTileSize = 16;
+    public int scale = 4;
+    public int tileSize = originalTileSize * scale;
+
     public final int maxScreenCol = 16;
     public final int maxScreenRow = 12;
-    public final int screenWidth = tileSize * maxScreenCol;
-    public final int screenHeight = tileSize * maxScreenRow;
+    public int screenWidth = tileSize * maxScreenCol;
+    public int screenHeight = tileSize * maxScreenRow;
 
     // WORLD
     public final int maxWorldCol = 16;
@@ -52,6 +61,8 @@ public class GamePanel extends JPanel implements Runnable {
     public Sound gameOverMusic = new Sound();
     public Sound victoryMusic = new Sound();
     public Sound eggSound = new Sound();
+    public Sound weaponSound = new Sound();
+    public Sound tensionMusic = new Sound();
 
     public int currentLevel = 1;
     Thread gameThread;
@@ -60,6 +71,9 @@ public class GamePanel extends JPanel implements Runnable {
     public String playerName = "Player";
     public Player player;
     public ArrayList<Chicken> chickens = new ArrayList<>();
+
+    // LOGIC NHẶT NHIỀU TRỨNG
+    public int eggsCollected = 0;
 
     public GamePanel(Main main) {
         this.main = main;
@@ -74,6 +88,23 @@ public class GamePanel extends JPanel implements Runnable {
         player = new Player(this, keyH);
         ui = new UI(this);
         setupGame();
+    }
+
+    public void setWindowSize(int newScale) {
+        this.scale = newScale;
+        this.tileSize = originalTileSize * scale;
+        this.screenWidth = tileSize * maxScreenCol;
+        this.screenHeight = tileSize * maxScreenRow;
+
+        this.setPreferredSize(new Dimension(screenWidth, screenHeight));
+
+        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        if (frame != null) {
+            frame.pack();
+            frame.setLocationRelativeTo(null);
+        }
+
+        System.out.println("Scale hien tai: " + scale + " | TileSize: " + tileSize);
     }
 
     public void setPlayerName(String playerName) {
@@ -151,16 +182,29 @@ public class GamePanel extends JPanel implements Runnable {
         if (eggSound != null && eggSound.isLoaded()) {
             eggSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
         }
+
+        if (weaponSound != null && weaponSound.isLoaded()) {
+            weaponSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+        }
+
+        if (tensionMusic != null && tensionMusic.isLoaded()) {
+            tensionMusic.setVolume(isMusicMuted() ? 0 : getMusicVolume());
+        }
     }
 
     public void setupGame() {
-        gameState = STATE_PLAY;
+        gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
         hasSavedProgress = false;
+        eggsCollected = 0;
+        eggEffectTick = 0;
+
+        stopAllSounds();
         tileM.resetMapObjects();
 
         if (player != null) {
             player.setDefaultValues();
             player.name = this.playerName;
+            player.hasEgg = false;
 
             if (tileM.playerStartX != 0 || tileM.playerStartY != 0) {
                 player.x = tileM.playerStartX;
@@ -174,10 +218,16 @@ public class GamePanel extends JPanel implements Runnable {
         eggSound.setFile("/res/audio/egg.wav");
         eggSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
 
+        weaponSound.setFile("/res/audio/weapon.wav");
+        weaponSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+
+        tensionMusic.setFile("/res/audio/tension.wav");
+        tensionMusic.setVolume(isMusicMuted() ? 0 : getMusicVolume());
+
         tileM.resetMapObjects();
     }
 
-    // Menu music giờ do MenuPanel quản lý
+    // Menu music do MenuPanel quản lý
     public void playMenuMusic() {
         if (main != null && main.menuPanel != null) {
             main.menuPanel.playMenuMusic();
@@ -204,6 +254,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void showLevel1WinScreen() {
+        stopTensionMusic();
         clearSavedProgress();
         gameState = STATE_LEVEL_COMPLETE;
         mouseH.resetClick();
@@ -216,6 +267,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void playGameOverMusic() {
+        stopTensionMusic();
         gameOverMusic.stop();
         gameOverMusic.setFile("/res/audio/gameover.wav");
 
@@ -234,16 +286,57 @@ public class GamePanel extends JPanel implements Runnable {
         eggSound.play();
     }
 
+    public void playWeaponSound() {
+        if (!weaponSound.isLoaded()) {
+            weaponSound.setFile("/res/audio/weapon.wav");
+        }
+
+        weaponSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+        weaponSound.play();
+    }
+
+    public void playTensionMusic() {
+        if (!tensionMusic.isLoaded()) {
+            tensionMusic.setFile("/res/audio/tension.wav");
+        }
+
+        tensionMusic.setVolume(isMusicMuted() ? 0 : getMusicVolume());
+
+        if (!tensionMusic.isRunning()) {
+            tensionMusic.loop();
+        }
+    }
+
+    public void stopTensionMusic() {
+        if (tensionMusic != null) {
+            tensionMusic.stop();
+        }
+    }
+
     private void spawnInitialChickens() {
         chickens.clear();
-        chickens.add(new Chicken(this, 192, 128));
-        chickens.add(new Chicken(this, 64, 304));
-        chickens.add(new Chicken(this, 896, 192));
-        chickens.add(new Chicken(this, 480, 64));
-        chickens.add(new Chicken(this, 512, 384));
-        chickens.add(new Chicken(this, 896, 640));
-        chickens.add(new Chicken(this, 448, 608));
-        chickens.add(new Chicken(this, 624, 544));
+
+        switch (currentLevel) {
+            case 1:
+                chickens.add(new Chicken(this, 192, 128));
+                chickens.add(new Chicken(this, 64, 304));
+                chickens.add(new Chicken(this, 896, 192));
+                chickens.add(new Chicken(this, 480, 64));
+                chickens.add(new Chicken(this, 512, 384));
+                chickens.add(new Chicken(this, 896, 640));
+                chickens.add(new Chicken(this, 448, 608));
+                chickens.add(new Chicken(this, 624, 544));
+                break;
+
+            case 2:
+                chickens.add(new Chicken(this, 78, 185));
+                chickens.add(new Chicken(this, 800, 115));
+                chickens.add(new Chicken(this, 128, 640));
+                chickens.add(new Chicken(this, 896, 640));
+                chickens.add(new Chicken(this, 512, 335));
+                chickens.add(new Chicken(this, 320, 512));
+                break;
+        }
     }
 
     public void startGameThread() {
@@ -294,7 +387,7 @@ public class GamePanel extends JPanel implements Runnable {
     public void update() {
         if (gameState == STATE_LEVEL_COMPLETE) {
             if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                mouseH.clicked = false;
+                mouseH.resetClick();
                 startLevel2();
             }
             return;
@@ -377,11 +470,11 @@ public class GamePanel extends JPanel implements Runnable {
             player.update();
             tileM.checkItemCollisions(player.getBounds());
 
-            if (tileM.houseRect != null && player.hasEgg && player.getBounds().intersects(tileM.houseRect)) {
-                if (currentLevel == 1) {
+            if (tileM.houseRect != null && player.getBounds().intersects(tileM.houseRect)) {
+                if (currentLevel == 1 && player.hasEgg) {
                     showLevel1WinScreen();
                     return;
-                } else if (currentLevel == 2) {
+                } else if (currentLevel == 2 && eggsCollected >= 2) {
                     showGameCompletedScreen();
                     return;
                 }
@@ -413,6 +506,14 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
+        if (player != null && player.hasEgg) {
+            eggEffectTick++;
+            playTensionMusic();
+        } else {
+            eggEffectTick = 0;
+            stopTensionMusic();
+        }
+
         tileM.update();
     }
 
@@ -433,18 +534,47 @@ public class GamePanel extends JPanel implements Runnable {
 
         tileM.drawForeground(g2);
 
+        if (player != null && player.hasEgg) {
+            drawEggOverlay(g2);
+        }
+
         if (ui != null) {
             ui.draw(g2);
         }
     }
 
+    private void drawEggOverlay(Graphics2D g2) {
+        float pulse = (float) ((Math.sin(eggEffectTick * 0.08) + 1.0) / 2.0);
+
+        float centerX = player.x + tileSize / 2f;
+        float centerY = player.y + tileSize / 2f;
+
+        float radius = 170f + pulse * 15f;
+
+        float[] dist = {0.0f, 0.28f, 0.55f, 1.0f};
+        Color[] colors = {
+            new Color(255, 245, 190, 18),
+            new Color(0, 0, 0, 0),
+            new Color(0, 0, 0, 35),
+            new Color(0, 0, 0, 72)
+        };
+
+        RadialGradientPaint paint = new RadialGradientPaint(
+            new Point2D.Float(centerX, centerY),
+            radius * 2.8f,
+            dist,
+            colors
+        );
+
+        g2.setPaint(paint);
+        g2.fillRect(0, 0, screenWidth, screenHeight);
+    }
+
     public void startNewGame() {
         clearSavedProgress();
-        gameState = STATE_PLAY;
         currentLevel = 1;
         tileM.loadLevelMap(1);
         setupGame();
-        stopAllSounds();
         stopGameThread();
         startGameThread();
     }
@@ -457,7 +587,11 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void startLevel2() {
         clearSavedProgress();
+        stopTensionMusic();
+
         currentLevel = 2;
+        eggsCollected = 0;
+        eggEffectTick = 0;
         gameState = STATE_LEVEL2_PLAY;
 
         tileM.loadLevelMap(2);
@@ -465,6 +599,7 @@ public class GamePanel extends JPanel implements Runnable {
         if (player != null) {
             player.setDefaultValues();
             player.name = this.playerName;
+            player.hasEgg = false;
 
             if (tileM.playerStartX != 0 || tileM.playerStartY != 0) {
                 player.x = tileM.playerStartX;
@@ -481,6 +616,8 @@ public class GamePanel extends JPanel implements Runnable {
         victoryMusic.stop();
         gameOverMusic.stop();
         eggSound.stop();
+        weaponSound.stop();
+        tensionMusic.stop();
 
         if (player != null) {
             player.stopFootstepSound();
@@ -488,6 +625,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void showGameWinScreen() {
+        stopTensionMusic();
         clearSavedProgress();
         gameState = STATE_GAME_WIN;
 
@@ -499,9 +637,10 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void showGameCompletedScreen() {
+        stopTensionMusic();
         clearSavedProgress();
         gameState = STATE_GAME_COMPLETED;
-        mouseH.clicked = false;
+        mouseH.resetClick();
 
         if (player != null) {
             player.stopFootstepSound();
@@ -513,11 +652,13 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void restartGame() {
         clearSavedProgress();
-        gameState = STATE_PLAY;
+        stopTensionMusic();
+
         currentLevel = 1;
+        eggsCollected = 0;
+        eggEffectTick = 0;
         tileM.loadLevelMap(1);
         setupGame();
-        stopAllSounds();
         stopGameThread();
         startGameThread();
     }

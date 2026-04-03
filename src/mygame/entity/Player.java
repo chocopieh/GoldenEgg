@@ -15,6 +15,7 @@ import mygame.main.GamePanel;
 import mygame.main.KeyHandler;
 import mygame.main.Sound;
 
+
 public class Player extends Entity {
 
     KeyHandler keyH;
@@ -165,7 +166,6 @@ public class Player extends Entity {
 
                 collisionOn = false;
                 gp.cChecker.checkTile(this);
-                checkObjectInteraction();
 
                 if (!collisionOn) {
                     switch (direction) {
@@ -179,6 +179,8 @@ public class Player extends Entity {
                     stopFootstepSound();
                 }
 
+                checkObjectInteraction(); // chuyển xuống đây
+
                 spriteCounter++;
                 if (spriteCounter > 12) {
                     spriteNum = (spriteNum == 1) ? 2 : 1;
@@ -188,6 +190,7 @@ public class Player extends Entity {
             } else {
                 spriteNum = 1;
                 stopFootstepSound();
+                checkObjectInteraction(); // đứng yên trên item vẫn nhặt được
             }
         }
 
@@ -250,12 +253,16 @@ public class Player extends Entity {
             hasEgg = true;
             gp.tileM.eggCollected = true;
             gp.tileM.eggRect = null;
+            stopFootstepSound();
             gp.playEggSound();
         }
 
         if (hasEgg && !hasWeapon && gp.tileM.weaponRect != null && pRect.intersects(gp.tileM.weaponRect)) {
+            System.out.println("Da nhat vu khi");
+            stopFootstepSound();
             hasWeapon = true;
             gp.tileM.weaponRect = null;
+            gp.playWeaponSound();
         }
     }
 
@@ -296,13 +303,32 @@ public class Player extends Entity {
             }
         }
 
-        if (!(invincible && invincibleCounter % 6 < 3)) {
+       if (!(invincible && invincibleCounter % 6 < 3)) {
             if (image != null) {
+                if (hasEgg) {
+                    drawEggAura(g2);
+                }
                 g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
             }
         }
-
         drawPlayerUI(g2);
+    }
+    
+    private void drawEggAura(Graphics2D g2) {
+        int centerX = x + gp.tileSize / 2;
+        int centerY = y + gp.tileSize / 2;
+
+        // vòng glow ngoài
+        g2.setColor(new Color(255, 220, 120, 26));
+        g2.fillOval(centerX - 56, centerY - 56, 112, 112);
+
+        // vòng glow giữa
+        g2.setColor(new Color(255, 235, 150, 22));
+        g2.fillOval(centerX - 40, centerY - 40, 80, 80);
+
+        // vòng glow trong
+        g2.setColor(new Color(255, 248, 210, 18));
+        g2.fillOval(centerX - 26, centerY - 26, 52, 52);
     }
 
     private void drawPlayerUI(Graphics2D g2) {
@@ -314,7 +340,7 @@ public class Player extends Entity {
         g2.setColor(new Color(0, 0, 0, 150));
         g2.drawString(name, textX + 2, textY + 2);
 
-        g2.setColor(Color.WHITE);
+        g2.setColor(hasEgg ? new Color(255, 245, 210) : Color.WHITE);
         g2.drawString(name, textX, textY);
     }
 

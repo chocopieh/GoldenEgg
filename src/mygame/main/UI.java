@@ -25,7 +25,6 @@ public class UI {
     public UI(GamePanel gp) {
         this.gp = gp;
 
-        // load font pixel cho HUD
         titleFont = loadFont(16f);
         smallFont = loadFont(12f);
         bigFont = loadFont(28f);
@@ -98,37 +97,30 @@ public class UI {
 
         int panelX = 16;
         int panelY = 16;
-        int panelWidth = 180;
-        int panelHeight = 60;
+        int panelWidth = 200;
+        int panelHeight = 65;
 
-        // nền HUD
         g2.setColor(new Color(0, 0, 0, 160));
         g2.fillRect(panelX, panelY, panelWidth, panelHeight);
 
-        // viền pixel style
         g2.setColor(new Color(255, 240, 200));
         g2.drawRect(panelX, panelY, panelWidth, panelHeight);
 
-        // ===== NAME =====
         g2.setFont(titleFont);
         g2.setColor(Color.WHITE);
         g2.drawString(gp.player.name, panelX + 10, panelY + 18);
 
-        // ===== HP BAR =====
         int barX = panelX + 10;
         int barY = panelY + 26;
         int barWidth = 110;
         int barHeight = 10;
 
-        // viền ngoài
         g2.setColor(Color.BLACK);
         g2.fillRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4);
 
-        // nền bar
         g2.setColor(new Color(60, 60, 60));
         g2.fillRect(barX, barY, barWidth, barHeight);
 
-        // lượng máu
         int currentBar = (int) ((double) gp.player.health / gp.player.maxHealth * barWidth);
 
         if (gp.player.health > 60) {
@@ -141,21 +133,26 @@ public class UI {
 
         g2.fillRect(barX, barY, currentBar, barHeight);
 
-        // highlight
         g2.setColor(new Color(255, 255, 255, 80));
         g2.fillRect(barX, barY, currentBar, 2);
 
-        // text HP
         g2.setFont(smallFont);
         g2.setColor(Color.WHITE);
         g2.drawString(gp.player.health + "/" + gp.player.maxHealth,
                 barX + barWidth + 8, barY + 9);
 
-        // ===== EGG STATUS =====
-        String eggText = gp.player.hasEgg ? "EGG: YES" : "EGG: NO";
+        g2.setFont(titleFont);
 
-        g2.setColor(gp.player.hasEgg ? new Color(255, 230, 90) : Color.LIGHT_GRAY);
-        g2.drawString(eggText, panelX + 10, panelY + 48);
+        int targetEggs = (gp.currentLevel == 2) ? 2 : 1;
+        String eggText = "EGGS: " + gp.eggsCollected + "/" + targetEggs;
+
+        if (gp.eggsCollected >= targetEggs) {
+            g2.setColor(new Color(255, 230, 90));
+        } else {
+            g2.setColor(Color.LIGHT_GRAY);
+        }
+
+        g2.drawString(eggText, panelX + 10, panelY + 52);
     }
 
     private void drawLevel1WinScreen(Graphics2D g2) {

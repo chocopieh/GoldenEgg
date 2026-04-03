@@ -572,12 +572,7 @@ public class MenuPanel extends JPanel {
         menuMusicPlaying = false;
     }
 
-    public void playClickSound() {
-        if (sfxMuted || sfxVolume <= 0) return;
-
-        clickSound.setFile("/res/audio/click.wav");
-        clickSound.setVolume(sfxVolume);
-        clickSound.play();
+     public void playClickSound() {
     }
 
     public int getMusicVolume() {
