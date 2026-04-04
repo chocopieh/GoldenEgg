@@ -31,6 +31,7 @@ public class GamePanel extends JPanel implements Runnable {
     public final int STATE_PAUSE = 4;
     public final int STATE_GAME_COMPLETED = 5;
     public final int STATE_GAME_OVER = 6;
+    public final int STATE_LEVEL_TRANSITION = 7;
 
     public int gameState = STATE_PLAY;
 
@@ -52,11 +53,16 @@ public class GamePanel extends JPanel implements Runnable {
 
     // SYSTEM
     public TileManager tileM = new TileManager(this);
-    public KeyHandler keyH = new KeyHandler();
+
+    // Nếu project bạn vẫn dùng constructor rỗng thì đổi lại thành:
+    // public KeyHandler keyH = new KeyHandler();
+    // public MouseHandler mouseH = new MouseHandler();
+    public KeyHandler keyH = new KeyHandler(this);
     public CollisionChecker cChecker = new CollisionChecker(this);
     public UI ui;
+    public ConfettiManager confettiM = new ConfettiManager(this);
     public PathFinder pFinder = new PathFinder(this);
-    public MouseHandler mouseH = new MouseHandler();
+    public MouseHandler mouseH = new MouseHandler(this);
 
     public Sound gameOverMusic = new Sound();
     public Sound victoryMusic = new Sound();
@@ -65,12 +71,17 @@ public class GamePanel extends JPanel implements Runnable {
     public Sound slashSound = new Sound();
     public Sound tensionMusic = new Sound();
     public Sound gameplayMusic = new Sound();
-    
+
     public int gameMusicVolume = 70;
+    private int lastMusicVolume = 70;
     public boolean gameMusicMuted = false;
 
     public int footstepVolume = 80;
+    private int lastFootstepVolume = 80;
     public boolean footstepMuted = false;
+
+    // Tránh stop/play nhạc liên tục mỗi frame
+    private boolean isTensionPlaying = false;
 
     public int currentLevel = 1;
     Thread gameThread;
@@ -95,6 +106,8 @@ public class GamePanel extends JPanel implements Runnable {
 
         player = new Player(this, keyH);
         ui = new UI(this);
+        confettiM = new ConfettiManager(this);
+
         setupGame();
     }
 
@@ -137,6 +150,7 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         stopAllSounds();
+        confettiM.stop();
         main.showMenu();
     }
 
@@ -178,40 +192,6 @@ public class GamePanel extends JPanel implements Runnable {
         return mp != null && mp.isSfxMuted();
     }
 
-    public void refreshAudioSettings() {
-        if (victoryMusic != null && victoryMusic.isLoaded()) {
-            victoryMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
-        }
-
-        if (gameOverMusic != null && gameOverMusic.isLoaded()) {
-            gameOverMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
-        }
-
-        if (tensionMusic != null && tensionMusic.isLoaded()) {
-            tensionMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
-        }
-
-        if (gameplayMusic != null && gameplayMusic.isLoaded()) {
-            gameplayMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
-        }
-
-        if (eggSound != null && eggSound.isLoaded()) {
-            eggSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
-        }
-
-        if (weaponSound != null && weaponSound.isLoaded()) {
-            weaponSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
-        }
-
-        if (slashSound != null && slashSound.isLoaded()) {
-            slashSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
-        }
-
-        if (player != null) {
-            player.refreshFootstepVolume();
-        }
-    }
-    
     public int getGameMusicVolume() {
         return gameMusicVolume;
     }
@@ -230,53 +210,134 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void setGameMusicVolume(int volume) {
         gameMusicVolume = Math.max(0, Math.min(100, volume));
-        refreshPauseAudio();
-    }
 
-    public void setFootstepVolume(int volume) {
-        footstepVolume = Math.max(0, Math.min(100, volume));
+        if (gameMusicVolume == 0) {
+            gameMusicMuted = true;
+        } else {
+            gameMusicMuted = false;
+        }
+
         refreshPauseAudio();
     }
 
     public void toggleGameMusicMute() {
         gameMusicMuted = !gameMusicMuted;
-        refreshPauseAudio();
+
+        if (gameMusicMuted) {
+            lastMusicVolume = gameMusicVolume;
+            gameMusicVolume = 0;
+
+            if (gameplayMusic != null) gameplayMusic.setVolume(0);
+            if (tensionMusic != null) tensionMusic.setVolume(0);
+            if (victoryMusic != null) victoryMusic.setVolume(0);
+            if (gameOverMusic != null) gameOverMusic.setVolume(0);
+        } else {
+            gameMusicVolume = (lastMusicVolume <= 0) ? 70 : lastMusicVolume;
+            refreshPauseAudio();
+        }
     }
 
+    public void setFootstepVolume(int volume) {
+        this.footstepVolume = Math.max(0, Math.min(100, volume));
+        if (footstepVolume > 0) {
+            footstepMuted = false;
+        }
+        if (player != null) {
+            player.refreshFootstepVolume();
+        }
+    }
+
+    
     public void toggleFootstepMute() {
         footstepMuted = !footstepMuted;
-        refreshPauseAudio();
+
+        if (footstepMuted) {
+            lastFootstepVolume = footstepVolume;
+            footstepVolume = 0;
+
+            if (player != null) {
+                player.refreshFootstepVolume();
+                player.stopFootstepSound();
+            }
+        } else {
+            footstepVolume = (lastFootstepVolume <= 0) ? 80 : lastFootstepVolume;
+
+            if (player != null) {
+                player.refreshFootstepVolume();
+            }
+        }
     }
-    
+
     public void refreshPauseAudio() {
+        int gameVol = gameMusicMuted ? 0 : gameMusicVolume;
+
         if (gameplayMusic != null && gameplayMusic.isLoaded()) {
-            gameplayMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
+            gameplayMusic.setVolume(gameVol);
         }
 
         if (tensionMusic != null && tensionMusic.isLoaded()) {
-            tensionMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
+            tensionMusic.setVolume(gameVol);
         }
 
         if (victoryMusic != null && victoryMusic.isLoaded()) {
-            victoryMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
+            victoryMusic.setVolume(gameVol);
         }
 
         if (gameOverMusic != null && gameOverMusic.isLoaded()) {
-            gameOverMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
+            gameOverMusic.setVolume(gameVol);
         }
 
         if (player != null) {
             player.refreshFootstepVolume();
         }
     }
-    
+
+    public void refreshAudioSettings() {
+        int gameVol = gameMusicMuted ? 0 : gameMusicVolume;
+        int sfxVol = isSfxMuted() ? 0 : getSfxVolume();
+
+        if (victoryMusic != null && victoryMusic.isLoaded()) {
+            victoryMusic.setVolume(gameVol);
+        }
+
+        if (gameOverMusic != null && gameOverMusic.isLoaded()) {
+            gameOverMusic.setVolume(gameVol);
+        }
+
+        if (tensionMusic != null && tensionMusic.isLoaded()) {
+            tensionMusic.setVolume(gameVol);
+        }
+
+        if (gameplayMusic != null && gameplayMusic.isLoaded()) {
+            gameplayMusic.setVolume(gameVol);
+        }
+
+        if (eggSound != null && eggSound.isLoaded()) {
+            eggSound.setVolume(sfxVol);
+        }
+
+        if (weaponSound != null && weaponSound.isLoaded()) {
+            weaponSound.setVolume(sfxVol);
+        }
+
+        if (slashSound != null && slashSound.isLoaded()) {
+            slashSound.setVolume(sfxVol);
+        }
+
+        if (player != null) {
+            player.refreshFootstepVolume();
+        }
+    }
+
     public void setupGame() {
         gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
         hasSavedProgress = false;
         eggsCollected = 0;
         eggEffectTick = 0;
+        isTensionPlaying = false;
 
         stopAllSounds();
+        confettiM.stop();
         tileM.resetMapObjects();
 
         if (player != null) {
@@ -307,6 +368,14 @@ public class GamePanel extends JPanel implements Runnable {
 
         gameplayMusic.setFile("/res/audio/gameplay.wav");
         gameplayMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
+
+        victoryMusic.setFile("/res/audio/victory.wav");
+        victoryMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
+
+        gameOverMusic.setFile("/res/audio/gameover.wav");
+        gameOverMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
+
+        playGameplayMusic();
     }
 
     // Menu music do MenuPanel quản lý
@@ -323,20 +392,22 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void playVictoryMusic() {
-        System.out.println("Goi playVictoryMusic");
-        victoryMusic.stop();
-        victoryMusic.setFile("/res/audio/victory.wav");
+        stopAllSounds();
+
+        if (!victoryMusic.isLoaded()) {
+            victoryMusic.setFile("/res/audio/victory.wav");
+        }
 
         if (victoryMusic.isLoaded()) {
-            victoryMusic.setVolume(isMusicMuted() ? 0 : getMusicVolume());
+            victoryMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
             victoryMusic.play();
+            System.out.println("Da phat victory music");
         } else {
             System.out.println("Khong load duoc victory.wav");
         }
     }
 
     public void showLevel1WinScreen() {
-        stopTensionMusic();
         clearSavedProgress();
         gameState = STATE_LEVEL_COMPLETE;
         mouseH.resetClick();
@@ -349,22 +420,26 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void playGameOverMusic() {
-        stopTensionMusic();
-        gameOverMusic.stop();
-        gameOverMusic.setFile("/res/audio/gameover.wav");
+        stopAllSounds();
+
+        if (!gameOverMusic.isLoaded()) {
+            gameOverMusic.setFile("/res/audio/gameover.wav");
+        }
 
         if (gameOverMusic.isLoaded()) {
-            gameOverMusic.setVolume(isMusicMuted() ? 0 : getMusicVolume());
+            gameOverMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
             gameOverMusic.play();
+            System.out.println("Da phat game over music");
+        } else {
+            System.out.println("Khong load duoc gameover.wav");
         }
     }
-     public void playGameplayMusic() {
+
+    public void playGameplayMusic() {
         if (!gameplayMusic.isLoaded()) {
             gameplayMusic.setFile("/res/audio/gameplay.wav");
         }
-
         gameplayMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
-
         if (!gameplayMusic.isRunning()) {
             gameplayMusic.loop();
         }
@@ -394,6 +469,15 @@ public class GamePanel extends JPanel implements Runnable {
         weaponSound.play();
     }
 
+    public void playSlashSound() {
+        if (!slashSound.isLoaded()) {
+            slashSound.setFile("/res/audio/slash.wav");
+        }
+
+        slashSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+        slashSound.playOnceFromStart();
+    }
+
     public void playTensionMusic() {
         if (!tensionMusic.isLoaded()) {
             tensionMusic.setFile("/res/audio/tension.wav");
@@ -405,20 +489,11 @@ public class GamePanel extends JPanel implements Runnable {
             tensionMusic.loop();
         }
     }
-   
+
     public void stopTensionMusic() {
         if (tensionMusic != null) {
             tensionMusic.stop();
         }
-    }
-    
-    public void playSlashSound() {
-        if (!slashSound.isLoaded()) {
-            slashSound.setFile("/res/audio/slash.wav");
-        }
-
-        slashSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
-        slashSound.playOnceFromStart();
     }
 
     private void spawnInitialChickens() {
@@ -426,14 +501,19 @@ public class GamePanel extends JPanel implements Runnable {
 
         switch (currentLevel) {
             case 1:
-                chickens.add(new Chicken(this, 192, 128));
-                chickens.add(new Chicken(this, 64, 304));
-                chickens.add(new Chicken(this, 896, 192));
+                chickens.add(new Chicken(this, 198, 128));
                 chickens.add(new Chicken(this, 480, 64));
+                chickens.add(new Chicken(this, 896, 192));
+                chickens.add(new Chicken(this, 700, 192));
+                chickens.add(new Chicken(this, 64, 304));
                 chickens.add(new Chicken(this, 512, 384));
-                chickens.add(new Chicken(this, 896, 640));
-                chickens.add(new Chicken(this, 448, 608));
+                chickens.add(new Chicken(this, 896, 384));
                 chickens.add(new Chicken(this, 624, 544));
+                chickens.add(new Chicken(this, 448, 608));
+                chickens.add(new Chicken(this, 896, 640));
+                chickens.add(new Chicken(this, 700, 635));
+                chickens.add(new Chicken(this, 74, 60));
+                chickens.add(new Chicken(this, 284, 360));
                 break;
 
             case 2:
@@ -493,21 +573,47 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
+        confettiM.update();
+
         if (gameState == STATE_LEVEL_COMPLETE) {
             if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                 mouseH.resetClick();
-                startLevel2();
+                gameState = STATE_LEVEL_TRANSITION;
+                confettiM.stop();
             }
             return;
         }
 
-        if (gameState == STATE_GAME_WIN) {
-            if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                mouseH.resetClick();
-                clearSavedProgress();
-                stopAllSounds();
-                stopGameThread();
-                main.showMenu();
+        if (gameState == STATE_LEVEL_TRANSITION) {
+            if (mouseH.clicked) {
+                if (ui.readyBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                    mouseH.resetClick();
+                    startLevel2();
+                } else if (ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                    mouseH.resetClick();
+                    restartGame();
+                }
+            }
+            return;
+        }
+
+        if (gameState == STATE_GAME_WIN || gameState == STATE_GAME_COMPLETED) {
+            if (mouseH.clicked) {
+                if (ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                    mouseH.resetClick();
+                    ui.inputFinished = false;
+                    ui.inputNumber = "";
+                    restartGame();
+                } else if (ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                    mouseH.resetClick();
+                    clearSavedProgress();
+                    stopAllSounds();
+                    stopGameThread();
+                    confettiM.stop();
+                    ui.inputFinished = false;
+                    ui.inputNumber = "";
+                    main.showMenu();
+                }
             }
             return;
         }
@@ -528,7 +634,6 @@ public class GamePanel extends JPanel implements Runnable {
 
                 mouseH.resetClick();
                 return;
-
             } else if (gameState == STATE_PAUSE) {
                 hasSavedProgress = false;
                 gameState = (currentLevel == 2) ? STATE_LEVEL2_PLAY : STATE_PLAY;
@@ -552,13 +657,7 @@ public class GamePanel extends JPanel implements Runnable {
                     setGameMusicVolume(gameMusicVolume + 10);
                     return;
                 }
-
-                if (ui.musicMuteBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                    mouseH.resetClick();
-                    toggleGameMusicMute();
-                    return;
-                }
-
+           
                 if (ui.footMinusBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                     mouseH.resetClick();
                     setFootstepVolume(footstepVolume - 10);
@@ -570,13 +669,7 @@ public class GamePanel extends JPanel implements Runnable {
                     setFootstepVolume(footstepVolume + 10);
                     return;
                 }
-
-                if (ui.footMuteBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                    mouseH.resetClick();
-                    toggleFootstepMute();
-                    return;
-                }
-
+                
                 if (ui.continueBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
                     mouseH.resetClick();
                     hasSavedProgress = false;
@@ -586,23 +679,10 @@ public class GamePanel extends JPanel implements Runnable {
                 }
 
                 if (ui.menuBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
+                    mouseH.resetClick();
                     saveProgressAndBackToMenu();
                     return;
                 }
-            }
-            return;
-        }
-
-        if (gameState == STATE_GAME_COMPLETED) {
-            if (mouseH.clicked && ui.nextLevelBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                mouseH.resetClick();
-                restartGame();
-            } else if (mouseH.clicked && ui.backBtn.contains(mouseH.mouseX, mouseH.mouseY)) {
-                mouseH.resetClick();
-                clearSavedProgress();
-                stopAllSounds();
-                stopGameThread();
-                main.showMenu();
             }
             return;
         }
@@ -633,6 +713,12 @@ public class GamePanel extends JPanel implements Runnable {
 
             if (chicken.alive) {
                 chicken.update();
+
+                if (player != null && player.getBounds().intersects(chicken.getBounds())) {
+                    if (!player.invincible) {
+                        player.takeDamage(10);
+                    }
+                }
             } else {
                 chicken.respawnCounter++;
 
@@ -643,18 +729,24 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         if (player != null && player.health <= 0) {
-            player.triggerGameOver();
+            showGameOverScreen();
             return;
         }
 
-       if (player != null && player.hasEgg) {
+        if (player != null && player.hasEgg) {
             eggEffectTick++;
-            stopGameplayMusic();
-            playTensionMusic();
+            if (!isTensionPlaying) {
+                stopGameplayMusic();
+                playTensionMusic();
+                isTensionPlaying = true;
+            }
         } else {
             eggEffectTick = 0;
-            stopTensionMusic();
-            playGameplayMusic();
+            if (isTensionPlaying) {
+                stopTensionMusic();
+                playGameplayMusic();
+                isTensionPlaying = false;
+            }
         }
 
         tileM.update();
@@ -684,6 +776,12 @@ public class GamePanel extends JPanel implements Runnable {
         if (ui != null) {
             ui.draw(g2);
         }
+
+        if (confettiM != null) {
+            confettiM.draw(g2);
+        }
+
+        g2.dispose();
     }
 
     private void drawEggOverlay(Graphics2D g2) {
@@ -717,8 +815,13 @@ public class GamePanel extends JPanel implements Runnable {
         clearSavedProgress();
         stopAllSounds();
         stopGameThread();
+        confettiM.stop();
 
         currentLevel = 1;
+        eggsCollected = 0;
+        eggEffectTick = 0;
+        isTensionPlaying = false;
+
         tileM.loadLevelMap(1);
 
         keyH.resetKeys();
@@ -731,18 +834,18 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void completeLevel() {
-        clearSavedProgress();
-        gameState = STATE_LEVEL_COMPLETE;
-        playVictoryMusic();
+        showLevel1WinScreen();
     }
 
     public void startLevel2() {
         clearSavedProgress();
-        stopTensionMusic();
+        stopAllSounds();
+        confettiM.stop();
 
         currentLevel = 2;
         eggsCollected = 0;
         eggEffectTick = 0;
+        isTensionPlaying = false;
         gameState = STATE_LEVEL2_PLAY;
 
         tileM.loadLevelMap(2);
@@ -761,6 +864,7 @@ public class GamePanel extends JPanel implements Runnable {
         chickens.clear();
         spawnInitialChickens();
         refreshAudioSettings();
+        playGameplayMusic();
     }
 
     public void stopAllSounds() {
@@ -776,21 +880,22 @@ public class GamePanel extends JPanel implements Runnable {
             player.stopFootstepSound();
         }
     }
-    
+
     public void showGameWinScreen() {
-        stopTensionMusic();
+        stopAllSounds();
         clearSavedProgress();
         gameState = STATE_GAME_WIN;
+        mouseH.resetClick();
 
         if (player != null) {
             player.stopFootstepSound();
         }
 
         playVictoryMusic();
+        confettiM.start();
     }
 
     public void showGameCompletedScreen() {
-        stopTensionMusic();
         clearSavedProgress();
         gameState = STATE_GAME_COMPLETED;
         mouseH.resetClick();
@@ -800,18 +905,34 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         playVictoryMusic();
+        confettiM.start();
         repaint();
     }
+    
+    public void showGameOverScreen() {
+        clearSavedProgress();
+        gameState = STATE_GAME_OVER;
+        mouseH.resetClick();
+
+        if (player != null) {
+            player.stopFootstepSound();
+        }
+
+        playGameOverMusic();
+        repaint();
+    }   
 
     public void restartGame() {
         clearSavedProgress();
         stopAllSounds();
-        stopTensionMusic();
+        confettiM.stop();
         stopGameThread();
 
         currentLevel = 1;
         eggsCollected = 0;
         eggEffectTick = 0;
+        isTensionPlaying = false;
+
         tileM.loadLevelMap(1);
 
         keyH.resetKeys();
@@ -820,9 +941,6 @@ public class GamePanel extends JPanel implements Runnable {
         setupGame();
         startGameThread();
 
-        requestFocusInWindow();
-        keyH.resetKeys();
-        mouseH.resetClick();
         requestFocusInWindow();
     }
 }

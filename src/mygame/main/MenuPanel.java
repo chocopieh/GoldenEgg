@@ -8,7 +8,7 @@ import java.io.InputStream;
 
 public class MenuPanel extends JPanel {
 
-    private final Main main;
+    final Main main;
     private Image background;
 
     // Main menu
@@ -54,8 +54,8 @@ public class MenuPanel extends JPanel {
                 repaint();
             }
         });
-        setupMouseEvents();
 
+        setupMouseEvents();
         playMenuMusic();
     }
 
@@ -70,7 +70,7 @@ public class MenuPanel extends JPanel {
                 buttonFont = new Font("Arial", Font.BOLD, 26);
             }
         } catch (Exception e) {
-            System.err.println("Không load được font, dùng font mặc định.");
+            System.err.println("Khong load duoc font, dung font mac dinh.");
             buttonFont = new Font("Arial", Font.BOLD, 26);
         }
     }
@@ -79,7 +79,7 @@ public class MenuPanel extends JPanel {
         try {
             background = new ImageIcon(getClass().getResource("/res/ui/menu_bg.png")).getImage();
         } catch (Exception e) {
-            System.err.println("Không thể tải menu_bg.png");
+            System.err.println("Khong the tai menu_bg.png");
         }
     }
 
@@ -91,33 +91,39 @@ public class MenuPanel extends JPanel {
         int btnH = 52;
         int centerX = (w - btnW) / 2;
 
-        // Main menu
         startButton = new Rectangle(centerX, 270, btnW, btnH);
         settingsButton = new Rectangle(centerX, 348, btnW, btnH);
         guideButton = new Rectangle(centerX, 426, btnW, btnH);
         exitButton = new Rectangle(centerX, 504, btnW, btnH);
 
-        // Settings panel
-        int panelW = 620;
-        int panelH = 450;
+        int panelW = 450;
+        int panelH = 320;
         int panelX = (w - panelW) / 2;
-        int panelY = 145;
+        int panelY = (h - panelH) / 2;
 
-        int sliderX = panelX + 185;   // khớp layout hiện tại
-        int sliderW = 280;
+        int startY = panelY + 85;
+        int rowHeight = 65;
+
+        int sliderW = 200;
+        int sliderX = panelX + (panelW - sliderW) / 2 - 20;
         int sliderH = 10;
 
-        musicBar = new Rectangle(sliderX, panelY + 195, sliderW, sliderH);
-        sfxBar   = new Rectangle(sliderX, panelY + 300, sliderW, sliderH);
+        int muteBtnW = 60;
+        int muteBtnH = 30;
+        int muteBtnX = sliderX + sliderW + 15;
 
-        if (musicKnob == null) musicKnob = new Rectangle(0, 0, 20, 26);
-        if (sfxKnob == null) sfxKnob = new Rectangle(0, 0, 20, 26);
+        musicBar = new Rectangle(sliderX, startY + 25, sliderW, sliderH);
+        sfxBar = new Rectangle(sliderX, startY + rowHeight + 25, sliderW, sliderH);
 
-        musicMuteButton = new Rectangle(sliderX + sliderW + 95, panelY + 179, 100, 36);
-        sfxMuteButton   = new Rectangle(sliderX + sliderW + 95, panelY + 284, 100, 36);
+        if (musicKnob == null) musicKnob = new Rectangle(0, 0, 18, 18);
+        if (sfxKnob == null) sfxKnob = new Rectangle(0, 0, 18, 18);
 
-        // BACK để hẳn trong panel, không tràn xuống dưới
-        backButton = new Rectangle((w - btnW) / 2, panelY + panelH - btnH - 20, btnW, btnH);
+        musicMuteButton = new Rectangle(muteBtnX, startY + 15, muteBtnW, muteBtnH);
+        sfxMuteButton = new Rectangle(muteBtnX, startY + rowHeight + 15, muteBtnW, muteBtnH);
+
+        int backBtnW = 140;
+        int backBtnH = 45;
+        backButton = new Rectangle((w - backBtnW) / 2, panelY + panelH - 65, backBtnW, backBtnH);
 
         updateKnobPositions();
     }
@@ -275,25 +281,17 @@ public class MenuPanel extends JPanel {
 
     private void updateKnobPositions() {
         int musicValue = musicMuted ? 0 : musicVolume;
-        int sfxValue   = sfxMuted ? 0 : sfxVolume;
+        int sfxValue = sfxMuted ? 0 : sfxVolume;
 
-        int musicW = musicMuted ? 18 : 20;
-        int musicH = musicMuted ? 24 : 26;
-        musicKnob.setBounds(
-                musicBar.x + (musicValue * musicBar.width / 100) - musicW / 2,
-                musicBar.y - 8,
-                musicW,
-                musicH
-        );
+        int kSize = 18;
 
-        int sfxW = sfxMuted ? 18 : 20;
-        int sfxH = sfxMuted ? 24 : 26;
-        sfxKnob.setBounds(
-                sfxBar.x + (sfxValue * sfxBar.width / 100) - sfxW / 2,
-                sfxBar.y - 8,
-                sfxW,
-                sfxH
-        );
+        int musicX = musicBar.x + (musicValue * musicBar.width / 100) - kSize / 2;
+        int musicY = musicBar.y + (musicBar.height / 2) - kSize / 2;
+        musicKnob.setBounds(musicX, musicY, kSize, kSize);
+
+        int sfxX = sfxBar.x + (sfxValue * sfxBar.width / 100) - kSize / 2;
+        int sfxY = sfxBar.y + (sfxBar.height / 2) - kSize / 2;
+        sfxKnob.setBounds(sfxX, sfxY, kSize, kSize);
     }
 
     private void toggleMusicMute() {
@@ -328,8 +326,8 @@ public class MenuPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         updateLayoutBounds();
-        Graphics2D g2 = (Graphics2D) g.create();
 
+        Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         if (background != null) {
@@ -353,76 +351,109 @@ public class MenuPanel extends JPanel {
     }
 
     private void drawSettingsOverlay(Graphics2D g2) {
-        g2.setColor(new Color(0, 0, 0, 110));
+        g2.setColor(new Color(0, 0, 0, 180));
         g2.fillRect(0, 0, getWidth(), getHeight());
 
-        int panelW = 620;
-        int panelH = 450;
+        int panelW = 450;
+        int panelH = 320;
         int panelX = (getWidth() - panelW) / 2;
-        int panelY = 145;
+        int panelY = (getHeight() - panelH) / 2;
 
-        g2.setColor(new Color(20, 12, 6, 225));
-        g2.fillRoundRect(panelX, panelY, panelW, panelH, 28, 28);
-
-        GradientPaint borderPaint = new GradientPaint(
-                panelX, panelY, new Color(255, 225, 120),
-                panelX, panelY + panelH, new Color(185, 110, 35)
+        GradientPaint baseGp = new GradientPaint(
+                panelX, panelY, new Color(90, 60, 30),
+                panelX, panelY + panelH, new Color(50, 30, 15)
         );
-        g2.setPaint(borderPaint);
+        g2.setPaint(baseGp);
+        g2.fillRoundRect(panelX, panelY, panelW, panelH, 30, 30);
+
         g2.setStroke(new BasicStroke(4f));
-        g2.drawRoundRect(panelX, panelY, panelW, panelH, 28, 28);
+        g2.setColor(new Color(255, 230, 180));
+        g2.drawRoundRect(panelX + 2, panelY + 2, panelW - 4, panelH - 4, 30, 30);
 
-        g2.setFont(buttonFont.deriveFont(40f));
-        drawCenteredText(g2, "SETTINGS", getWidth(), 220);
+        g2.setStroke(new BasicStroke(1f));
+        g2.setColor(new Color(30, 15, 5, 100));
+        g2.drawRoundRect(panelX + 6, panelY + 6, panelW - 12, panelH - 12, 25, 25);
 
-        g2.setFont(buttonFont.deriveFont(18f));
-        drawCenteredText(g2, "Adjust music and sound effects", getWidth(), 250);
+        String title = "SETTINGS";
+        g2.setFont(buttonFont.deriveFont(Font.BOLD, 28f));
+        g2.setColor(new Color(0, 0, 0, 150));
+        drawCenteredText(g2, title, getWidth(), panelY + 48);
+        g2.setColor(new Color(255, 250, 240));
+        drawCenteredText(g2, title, getWidth(), panelY + 45);
 
-        drawAudioRow(g2, "MUSIC", musicBar, musicKnob, musicMuteButton, musicVolume, musicMuted, hoveredButton.equals("musicMute"));
-        drawAudioRow(g2, "SFX", sfxBar, sfxKnob, sfxMuteButton, sfxVolume, sfxMuted, hoveredButton.equals("sfxMute"));
+        int startY = panelY + 85;
+        int rowHeight = 65;
+
+        int sliderW = 200;
+        int sliderX = panelX + (panelW - sliderW) / 2 - 20;
+        int sliderH = 10;
+
+        int muteBtnW = 60;
+        int muteBtnH = 30;
+        int muteBtnX = sliderX + sliderW + 15;
+
+        musicBar.setBounds(sliderX, startY + 25, sliderW, sliderH);
+        sfxBar.setBounds(sliderX, startY + rowHeight + 25, sliderW, sliderH);
+
+        musicMuteButton.setBounds(muteBtnX, startY + 15, muteBtnW, muteBtnH);
+        sfxMuteButton.setBounds(muteBtnX, startY + rowHeight + 15, muteBtnW, muteBtnH);
+
+        int backBtnW = 140;
+        int backBtnH = 45;
+        backButton.setBounds((getWidth() - backBtnW) / 2, panelY + panelH - 65, backBtnW, backBtnH);
+
+        updateKnobPositions();
+
+        drawAudioRowStyle(g2, "MUSIC", musicBar, musicKnob, musicMuteButton, musicVolume, musicMuted, hoveredButton.equals("musicMute"));
+        drawAudioRowStyle(g2, "SFX", sfxBar, sfxKnob, sfxMuteButton, sfxVolume, sfxMuted, hoveredButton.equals("sfxMute"));
 
         drawGameButton(g2, backButton, "BACK", hoveredButton.equals("back"));
     }
 
-    private void drawAudioRow(Graphics2D g2, String label, Rectangle bar, Rectangle knob,
-                              Rectangle muteButton, int value, boolean muted, boolean muteHovered) {
+    private void drawAudioRowStyle(Graphics2D g2, String label, Rectangle bar, Rectangle knob,
+                                   Rectangle muteBtn, float volume, boolean isMuted, boolean isMuteHovered) {
 
-        g2.setFont(buttonFont.deriveFont(26f));
+        g2.setFont(buttonFont.deriveFont(Font.PLAIN, 18f));
+        g2.setColor(new Color(255, 230, 180));
+        g2.drawString(label, bar.x - 70, bar.y + 10);
 
-        g2.setColor(new Color(45, 25, 10));
-        g2.drawString(label, bar.x + 2, bar.y - 18);
+        g2.setColor(new Color(30, 15, 5, 150));
+        g2.fillRoundRect(bar.x, bar.y, bar.width, bar.height, 10, 10);
 
-        g2.setColor(new Color(255, 240, 200));
-        g2.drawString(label, bar.x, bar.y - 20);
+        int fillWidth = isMuted ? 0 : (int) (bar.width * (volume / 100f));
 
-        g2.setColor(new Color(60, 35, 12, 220));
-        g2.fillRoundRect(bar.x, bar.y, bar.width, bar.height, 12, 12);
-
-        int effectiveValue = muted ? 0 : value;
-        int filledWidth = effectiveValue * bar.width / 100;
-
-        GradientPaint fillPaint = new GradientPaint(
-                bar.x, bar.y, new Color(255, 225, 120),
-                bar.x + bar.width, bar.y, new Color(210, 130, 35)
+        GradientPaint fillGp = new GradientPaint(
+                bar.x, bar.y, new Color(255, 215, 0),
+                bar.x + bar.width, bar.y, new Color(255, 165, 0)
         );
-        g2.setPaint(fillPaint);
-        g2.fillRoundRect(bar.x, bar.y, filledWidth, bar.height, 12, 12);
+        g2.setPaint(fillGp);
+        g2.fillRoundRect(bar.x, bar.y, fillWidth, bar.height, 10, 10);
 
         g2.setColor(new Color(50, 25, 5));
         g2.setStroke(new BasicStroke(2f));
-        g2.drawRoundRect(bar.x, bar.y, bar.width, bar.height, 12, 12);
+        g2.drawRoundRect(bar.x, bar.y, bar.width, bar.height, 10, 10);
 
-        GradientPaint knobPaint = new GradientPaint(
-                knob.x, knob.y,
-                muted ? new Color(155, 155, 155) : new Color(255, 235, 150),
-                knob.x, knob.y + knob.height,
-                muted ? new Color(100, 100, 100) : new Color(215, 130, 35)
-                );
-                g2.setPaint(knobPaint);
-                g2.fillRoundRect(knob.x, knob.y, knob.width, knob.height, 9, 9);
+        int kSize = 18;
+        int kX = bar.x + fillWidth - (kSize / 2);
+        int kY = bar.y + (bar.height / 2) - (kSize / 2);
+        knob.setBounds(kX, kY, kSize, kSize);
 
-                g2.setColor(new Color(50, 25, 5));
-                g2.drawRoundRect(knob.x, knob.y, knob.width, knob.height, 9, 9);
+        g2.setColor(new Color(0, 0, 0, 60));
+        g2.fillOval(kX + 2, kY + 2, kSize, kSize);
+
+        GradientPaint knobGp = new GradientPaint(
+                kX, kY, new Color(255, 250, 200),
+                kX + kSize, kY + kSize, new Color(230, 180, 50)
+        );
+        g2.setPaint(knobGp);
+        g2.fillOval(kX, kY, kSize, kSize);
+
+        g2.setColor(new Color(150, 100, 30));
+        g2.setStroke(new BasicStroke(1.5f));
+        g2.drawOval(kX, kY, kSize, kSize);
+
+        drawValueBadge(g2, (isMuted ? "0" : String.valueOf((int) volume)) + "%", bar.x + 70, bar.y - 28, isMuted);
+        drawMuteButton(g2, muteBtn, isMuted ? "OFF" : "ON", isMuteHovered, isMuted);
     }
 
     private void drawValueBadge(Graphics2D g2, String text, int x, int y, boolean muted) {
@@ -466,17 +497,13 @@ public class MenuPanel extends JPanel {
         g2.setPaint(gp);
         g2.fillRoundRect(rect.x, rect.y + yOffset, rect.width, rect.height, 10, 10);
 
-        g2.setColor(new Color(45, 25, 10));
         g2.setStroke(new BasicStroke(2f));
+        g2.setColor(new Color(50, 25, 5));
         g2.drawRoundRect(rect.x, rect.y + yOffset, rect.width, rect.height, 10, 10);
 
-        g2.setFont(buttonFont.deriveFont(18f));
-        FontMetrics fm = g2.getFontMetrics();
-        int tx = rect.x + (rect.width - fm.stringWidth(text)) / 2;
-        int ty = rect.y + yOffset + ((rect.height - fm.getHeight()) / 2) + fm.getAscent();
-
-        g2.setColor(new Color(255, 240, 200));
-        g2.drawString(text, tx, ty);
+        g2.setFont(buttonFont.deriveFont(16f));
+        g2.setColor(new Color(255, 245, 210));
+        drawCenteredTextInRect(g2, text, new Rectangle(rect.x, rect.y + yOffset, rect.width, rect.height));
     }
 
     private void drawCenteredText(Graphics2D g2, String text, int width, int y) {
@@ -487,6 +514,13 @@ public class MenuPanel extends JPanel {
         g2.drawString(text, x + 2, y + 2);
 
         g2.setColor(new Color(255, 245, 210));
+        g2.drawString(text, x, y);
+    }
+
+    private void drawCenteredTextInRect(Graphics2D g2, String text, Rectangle r) {
+        FontMetrics fm = g2.getFontMetrics();
+        int x = r.x + (r.width - fm.stringWidth(text)) / 2;
+        int y = r.y + ((r.height - fm.getHeight()) / 2) + fm.getAscent();
         g2.drawString(text, x, y);
     }
 
@@ -572,8 +606,9 @@ public class MenuPanel extends JPanel {
         menuMusicPlaying = false;
     }
 
-     public void playClickSound() {
-    }
+    public void playClickSound() {
+      }
+   
 
     public int getMusicVolume() {
         return musicMuted ? 0 : musicVolume;

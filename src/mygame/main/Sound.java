@@ -96,26 +96,24 @@ public class Sound {
         return clip != null && clip.isRunning();
     }
 
-    public void setVolume(int volumePercent) {
+    public void setVolume(int volume) {
         try {
             if (clip == null) return;
-            if (!clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) return;
 
-            FloatControl gainControl =
-                    (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+            FloatControl fc = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
 
-            if (volumePercent <= 0) {
-                gainControl.setValue(gainControl.getMinimum());
+            if (volume <= 0) {
+                fc.setValue(fc.getMinimum()); // tắt hẳn
                 return;
             }
 
-            float volume = volumePercent / 100f;
-            float dB = (float) (20.0 * Math.log10(volume));
+            float min = fc.getMinimum();
+            float max = fc.getMaximum();
 
-            if (dB < gainControl.getMinimum()) dB = gainControl.getMinimum();
-            if (dB > gainControl.getMaximum()) dB = gainControl.getMaximum();
+            float dB = (float) (20.0 * Math.log10(volume / 100.0));
+            dB = Math.max(min, Math.min(max, dB));
 
-            gainControl.setValue(dB);
+            fc.setValue(dB);
 
         } catch (Exception e) {
             e.printStackTrace();

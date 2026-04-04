@@ -49,7 +49,7 @@ public class Main {
 
         Dimension contentSize = new Dimension(WINDOWED_WIDTH, WINDOWED_HEIGHT);
         container.setPreferredSize(contentSize);
-       
+
         container.add(menuPanel, "menu");
         container.add(gamePanel, "game");
 
@@ -98,8 +98,10 @@ public class Main {
             }
         }
 
-        menuPanel.playMenuMusic();
-        menuPanel.requestFocusInWindow();
+        if (menuPanel != null) {
+            menuPanel.playMenuMusic();
+            menuPanel.requestFocusInWindow();
+        }
     }
 
     public void showGame() {
@@ -111,7 +113,9 @@ public class Main {
             menuPanel.stopMenuMusic();
         }
 
-        gamePanel.requestFocusInWindow();
+        if (gamePanel != null) {
+            gamePanel.requestFocusInWindow();
+        }
     }
 
     public void startGame(String playerName) {
@@ -132,7 +136,7 @@ public class Main {
         return fullScreen;
     }
 
-   public void toggleFullScreen() {
+    public void toggleFullScreen() {
         try {
             boolean wasShowingGame = gamePanel != null && gamePanel.isShowing();
 
@@ -179,20 +183,30 @@ public class Main {
             }
 
             container.revalidate();
-            menuPanel.revalidate();
-            gamePanel.revalidate();
-
             container.repaint();
-            menuPanel.repaint();
-            gamePanel.repaint();
+
+            if (menuPanel != null) {
+                menuPanel.revalidate();
+                menuPanel.repaint();
+            }
+
+            if (gamePanel != null) {
+                gamePanel.revalidate();
+                gamePanel.repaint();
+            }
+
             window.revalidate();
             window.repaint();
 
             SwingUtilities.invokeLater(() -> {
                 if (wasShowingGame) {
-                    gamePanel.requestFocusInWindow();
+                    if (gamePanel != null) {
+                        gamePanel.requestFocusInWindow();
+                    }
                 } else {
-                    menuPanel.requestFocusInWindow();
+                    if (menuPanel != null) {
+                        menuPanel.requestFocusInWindow();
+                    }
                 }
             });
 
