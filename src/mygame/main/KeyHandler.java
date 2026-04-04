@@ -9,6 +9,7 @@ public class KeyHandler implements KeyListener {
     public boolean escapePressed;
     public boolean pPressed;
     public boolean spacePressed;
+    public boolean spaceJustPressed;
 
     @Override
     public void keyTyped(KeyEvent e) {
@@ -36,8 +37,11 @@ public class KeyHandler implements KeyListener {
         if (code == KeyEvent.VK_P) {
             pPressed = true;
         }
-        if (code == KeyEvent.VK_SPACE) {
-            spacePressed = true;
+       if (code == KeyEvent.VK_SPACE) {
+            if (!spacePressed) {
+                spacePressed = true;
+                spaceJustPressed = true;
+            }
         }
     }
 
@@ -72,5 +76,13 @@ public class KeyHandler implements KeyListener {
         escapePressed = false;
         pPressed = false;
         spacePressed = false;
+        spaceJustPressed = false;
+    }
+    public boolean consumeSpaceJustPressed() {
+        if (spaceJustPressed) {
+            spaceJustPressed = false;
+            return true;
+        }
+        return false;
     }
 }

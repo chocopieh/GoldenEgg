@@ -121,4 +121,11 @@ public class Sound {
             e.printStackTrace();
         }
     }
+    public void playOnceFromStart() {
+        if (clip != null) {
+            clip.stop();
+            clip.setFramePosition(0);
+            clip.start();
+        }
+    }
 }

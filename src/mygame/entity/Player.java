@@ -157,13 +157,12 @@ public class Player extends Entity {
             attacking();
         } else {
 
-            if (keyH.spacePressed && hasWeapon) {
+             if (keyH.consumeSpaceJustPressed() && hasWeapon) {
                 stopFootstepSound();
                 attacking = true;
                 attackCounter = 0;
                 attackHitDone = false;
-                keyH.spacePressed = false; // bấm 1 lần = 1 phát
-
+                gp.playSlashSound();
             } else if (keyH.upPressed || keyH.downPressed || keyH.leftPressed || keyH.rightPressed) {
 
                 if (keyH.upPressed) direction = "up";

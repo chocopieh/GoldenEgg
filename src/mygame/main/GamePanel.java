@@ -62,6 +62,7 @@ public class GamePanel extends JPanel implements Runnable {
     public Sound victoryMusic = new Sound();
     public Sound eggSound = new Sound();
     public Sound weaponSound = new Sound();
+    public Sound slashSound = new Sound();
     public Sound tensionMusic = new Sound();
     public Sound gameplayMusic = new Sound();
     
@@ -202,6 +203,10 @@ public class GamePanel extends JPanel implements Runnable {
             weaponSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
         }
 
+        if (slashSound != null && slashSound.isLoaded()) {
+            slashSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+        }
+
         if (player != null) {
             player.refreshFootstepVolume();
         }
@@ -294,14 +299,14 @@ public class GamePanel extends JPanel implements Runnable {
         weaponSound.setFile("/res/audio/weapon.wav");
         weaponSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
 
+        slashSound.setFile("/res/audio/slash.wav");
+        slashSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+
         tensionMusic.setFile("/res/audio/tension.wav");
         tensionMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
-        
+
         gameplayMusic.setFile("/res/audio/gameplay.wav");
         gameplayMusic.setVolume(gameMusicMuted ? 0 : gameMusicVolume);
-
-        playGameplayMusic();
-        tileM.resetMapObjects();
     }
 
     // Menu music do MenuPanel quản lý
@@ -405,6 +410,15 @@ public class GamePanel extends JPanel implements Runnable {
         if (tensionMusic != null) {
             tensionMusic.stop();
         }
+    }
+    
+    public void playSlashSound() {
+        if (!slashSound.isLoaded()) {
+            slashSound.setFile("/res/audio/slash.wav");
+        }
+
+        slashSound.setVolume(isSfxMuted() ? 0 : getSfxVolume());
+        slashSound.playOnceFromStart();
     }
 
     private void spawnInitialChickens() {
@@ -754,6 +768,7 @@ public class GamePanel extends JPanel implements Runnable {
         gameOverMusic.stop();
         eggSound.stop();
         weaponSound.stop();
+        slashSound.stop();
         tensionMusic.stop();
         stopGameplayMusic();
 
@@ -761,7 +776,7 @@ public class GamePanel extends JPanel implements Runnable {
             player.stopFootstepSound();
         }
     }
-
+    
     public void showGameWinScreen() {
         stopTensionMusic();
         clearSavedProgress();
